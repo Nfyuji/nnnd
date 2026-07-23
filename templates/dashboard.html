@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saudi Leads — لوحة التحميل</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --line: #2a3542;
+      --text: #e8eef4;
+      --muted: #8b9aab;
+      --accent: #1fa97a;
+      --accent2: #3d8bfd;
+      --warn: #e6a23c;
+      --danger: #e35d6a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a3a2f 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #1a2a44 0%, transparent 50%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 18px 60px; }
+    h1 { margin: 0 0 6px; font-size: 1.7rem; font-weight: 700; }
+    .sub { color: var(--muted); margin-bottom: 22px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .card .label { color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; }
+    .card .value { font-size: 1.45rem; font-weight: 700; }
+    .ok { color: var(--accent); }
+    .bad { color: var(--danger); }
+    .warn { color: var(--warn); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+    a.btn, button.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #04140e;
+      text-decoration: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    a.btn.secondary, button.btn.secondary {
+      background: var(--accent2);
+      color: #fff;
+    }
+    a.btn.ghost, button.btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 14px;
+      text-align: right;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+    th { color: var(--muted); font-weight: 600; background: #151c24; }
+    tr:last-child td { border-bottom: 0; }
+    .empty { color: var(--muted); padding: 28px; text-align: center; }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      background: #243041;
+      color: var(--muted);
+    }
+    .pill.xlsx { background: #1e3d2f; color: #7ddea8; }
+    .pill.csv { background: #2a3340; color: #9db4cc; }
+    footer { margin-top: 18px; color: var(--muted); font-size: 0.85rem; }
+    .err {
+      background: #3a1d22;
+      border: 1px solid #6e3038;
+      color: #ffb4bc;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Saudi Leads Scraper</h1>
+    <p class="sub">جمع الشركات السعودية · تنزيل Excel · يعمل بدون سكون</p>
+
+    {% if scraper_error %}
+    <div class="err">خطأ السكريبر:
+{{ scraper_error }}</div>
+    {% endif %}
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">عدد الشركات</div>
+        <div class="value">{{ companies }}</div>
+      </div>
+      <div class="card">
+        <div class="label">حالة السكريبر</div>
+        <div class="value {% if scraper_alive %}ok{% else %}bad{% endif %}">
+          {% if scraper_alive %}شغّال{% else %}متوقف{% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">بدأ في</div>
+        <div class="value" style="font-size:1rem">{{ run_started_at or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="label">ينتهي في</div>
+        <div class="value" style="font-size:1rem">{{ run_deadline_at or '—' }}</div>
+      </div>
+      <div class="card">
+        <div class="label">Keep-Alive</div>
+        <div class="value ok" style="font-size:1rem">كل {{ keepalive_minutes }} د</div>
+      </div>
+      <div class="card">
+        <div class="label">ملفات التصدير</div>
+        <div class="value">{{ files|length }}</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="/download/excel">تنزيل أحدث Excel</a>
+      <a class="btn secondary" href="/download/contacts">Excel بالجهات فقط</a>
+      <a class="btn ghost" href="/download/csv">تنزيل CSV</a>
+      <form method="post" action="/export-now" style="display:inline">
+        <button class="btn ghost" type="submit">تصدير الآن من القاعدة</button>
+      </form>
+      <a class="btn ghost" href="/">تحديث الصفحة</a>
+    </div>
+
+    <h2 style="font-size:1.15rem;margin:0 0 12px">كل ملفات Excel / CSV</h2>
+    {% if files %}
+    <table>
+      <thead>
+        <tr>
+          <th>الملف</th>
+          <th>النوع</th>
+          <th>الحجم</th>
+          <th>آخر تعديل</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in files %}
+        <tr>
+          <td>{{ f.name }}</td>
+          <td><span class="pill {{ f.ext }}">{{ f.ext }}</span></td>
+          <td>{{ f.size_human }}</td>
+          <td>{{ f.mtime }}</td>
+          <td><a class="btn" style="padding:7px 12px;font-size:0.85rem" href="/files/{{ f.name }}">تنزيل</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="card empty">ما فيه ملفات بعد. انتظر بدء الجمع أو اضغط «تصدير الآن».</div>
+    {% endif %}
+
+    <footer>
+      البيانات تُحدَّث تلقائيًا أثناء التشغيل ·
+      <a href="/health" style="color:var(--accent2)">/health</a>
+      · Keep-Alive يمنع السكون على Render
+    </footer>
+  </div>
+  <script>
+    // Auto refresh every 60s so you see new companies/files
+    setTimeout(function () { location.reload(); }, 60000);
+  </script>
+</body>
+</html>
