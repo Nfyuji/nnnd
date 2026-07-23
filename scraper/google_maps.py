@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 import config
 from scraper.phones import normalize_saudi_phone, to_local_format
 from scraper.directories import overpass_post, nominatim_search, search_bing
+from scraper.osm_tags import OSM_TAG_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -157,36 +158,8 @@ CITY_COORDS = {
     "الدمام الخبر": (26.3200, 50.1400),
 }
 
-# OSM tags for BusinessOS target niches (marketing / social / phone reply)
-OSM_TAG_MAP = {
-    "متجر الكتروني": [("shop", "yes"), ("shop", "department_store"), ("shop", "clothes")],
-    "محل ورد": [("shop", "florist")],
-    "محل زهور": [("shop", "florist")],
-    "كوافير": [("shop", "hairdresser"), ("shop", "beauty")],
-    "كوافير نسائي": [("shop", "hairdresser"), ("shop", "beauty")],
-    "سوبر ماركت": [("shop", "supermarket")],
-    "هايبر ماركت": [("shop", "supermarket")],
-    "سوق": [("amenity", "marketplace"), ("shop", "convenience")],
-    "صيدلية": [("amenity", "pharmacy")],
-    "عيادة": [("amenity", "clinic"), ("amenity", "doctors")],
-    "مطعم": [("amenity", "restaurant"), ("amenity", "fast_food")],
-    "مقهى": [("amenity", "cafe")],
-    "كافيه": [("amenity", "cafe")],
-    "فندق": [("tourism", "hotel")],
-    "شاليه": [("tourism", "chalet"), ("tourism", "apartment")],
-    "شاليهات": [("tourism", "chalet")],
-    "منتزه": [("leisure", "park")],
-    "حديقة": [("leisure", "park"), ("leisure", "garden")],
-    "ملاهي": [("tourism", "theme_park"), ("leisure", "amusement_arcade")],
-    "شركة تسويق": [("office", "advertising_agency")],
-    "وكالة اعلانات": [("office", "advertising_agency")],
-    "دعاية واعلان": [("office", "advertising_agency")],
-    "ترويج": [("office", "advertising_agency")],
-    "صالون تجميل": [("shop", "beauty"), ("shop", "hairdresser")],
-    "مكتب عقاري": [("office", "estate_agent")],
-    "محل جوالات": [("shop", "mobile_phone")],
-    "بقالة": [("shop", "convenience"), ("shop", "grocery")],
-}
+# OSM tags imported from scraper/osm_tags.py (~600+ Arabic queries)
+# Fallback inference for any query not in the map:
 
 
 def _infer_osm_tags(query: str) -> list[tuple[str, str]]:
