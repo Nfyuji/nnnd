@@ -14,10 +14,10 @@ RUN mkdir -p /app/exports
 
 ENV PYTHONUNBUFFERED=1
 ENV EXPORT_DIR=/app/exports
-ENV RUN_HOURS=50
+ENV RUN_HOURS=24
 ENV PORT=10000
 
 EXPOSE 10000
 
-# Default: web mode (scraper + downloads). Override for worker: python main.py
-CMD ["gunicorn", "web:app", "--bind", "0.0.0.0:10000", "--workers", "1", "--threads", "4", "--timeout", "120"]
+# Render injects $PORT — must bind to it
+CMD gunicorn web:app --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --timeout 120
