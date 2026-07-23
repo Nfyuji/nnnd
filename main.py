@@ -39,13 +39,20 @@ from scraper.google_maps import search_companies
 from scraper.scoring import score_company
 from scraper.websites import enrich_company_record
 
+# Logging: stdout only on Render (filesystem often read-only except disk mount)
+_log_handlers = [logging.StreamHandler(sys.stdout)]
+try:
+    _log_path = Path(os.getenv("EXPORT_DIR", "/tmp")) / "scraper.log"
+    _log_path.parent.mkdir(parents=True, exist_ok=True)
+    _log_handlers.append(logging.FileHandler(_log_path, encoding="utf-8"))
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(ROOT / "scraper.log", encoding="utf-8"),
-    ],
+    handlers=_log_handlers,
+    force=True,
 )
 logger = logging.getLogger("main")
 
@@ -57,8 +64,14 @@ def _handle_signal(signum, frame):
     _shutdown.set()
 
 
-signal.signal(signal.SIGINT, _handle_signal)
-signal.signal(signal.SIGTERM, _handle_signal)
+# signal.signal only works in the main thread (fails if imported from gunicorn worker thread)
+if threading.current_thread() is threading.main_thread():
+    try:
+        signal.signal(signal.SIGINT, _handle_signal)
+        signal.signal(signal.SIGTERM, _handle_signal)
+    except Exception:
+        pass
+
 
 
 def _delay():
