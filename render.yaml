@@ -1,0 +1,67 @@
+services:
+  # PostgreSQL database
+  - type: pserv
+    name: saudi-leads-db
+    plan: free
+    env: docker
+    # Prefer managed Postgres instead — see README
+
+  # Long-running scraper (50h). Use paid Background Worker for reliability.
+  - type: worker
+    name: saudi-leads-scraper
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt && mkdir -p /opt/render/project/src/exports
+    startCommand: python main.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: saudi-leads-postgres
+          property: connectionString
+      - key: RUN_HOURS
+        value: "50"
+      - key: EXPORT_DIR
+        value: /opt/render/project/src/exports
+      - key: SCRAPE_DELAY_MIN
+        value: "2"
+      - key: SCRAPE_DELAY_MAX
+        value: "5"
+      - key: EXPORT_INTERVAL_MINUTES
+        value: "30"
+      - key: MAX_COMPANIES_PER_QUERY
+        value: "40"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+
+  # Web service: health checks + Excel download (also runs scraper in-thread)
+  - type: web
+    name: saudi-leads-web
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt && mkdir -p exports
+    startCommand: gunicorn web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    disk:
+      name: exports-disk
+      mountPath: /opt/render/project/src/exports
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: saudi-leads-postgres
+          property: connectionString
+      - key: RUN_HOURS
+        value: "50"
+      - key: EXPORT_DIR
+        value: /opt/render/project/src/exports
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+
+databases:
+  - name: saudi-leads-postgres
+    plan: free
+    databaseName: saudi_leads
+    user: saudi_leads

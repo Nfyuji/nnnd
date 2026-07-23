@@ -1,0 +1,17 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+exports/
+*.db
+*.xlsx
+*.csv
+!requirements.txt
+.pytest_cache/
+.idea/
+.vscode/
+chrome_profile/
+saudi_leads.db
+scraper.log
