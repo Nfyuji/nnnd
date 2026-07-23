@@ -133,6 +133,14 @@
         </div>
       </div>
       <div class="card">
+        <div class="label">قاعدة البيانات</div>
+        <div class="value ok" style="font-size:1rem">{{ db_kind|default('sqlite') }}</div>
+      </div>
+      <div class="card">
+        <div class="label">مهام منتهية / جارية</div>
+        <div class="value" style="font-size:1.1rem">{{ jobs_done|default(0) }} / {{ jobs_running|default(0) }}</div>
+      </div>
+      <div class="card">
         <div class="label">بدأ في</div>
         <div class="value" style="font-size:1rem">{{ run_started_at or '—' }}</div>
       </div>
@@ -153,12 +161,22 @@
     <div class="actions">
       <a class="btn" href="/download/excel">تنزيل أحدث Excel</a>
       <a class="btn secondary" href="/download/contacts">Excel بالجهات فقط</a>
+      <a class="btn secondary" href="/download/sqlite">تنزيل SQLite</a>
       <a class="btn ghost" href="/download/csv">تنزيل CSV</a>
       <form method="post" action="/export-now" style="display:inline">
         <button class="btn ghost" type="submit">تصدير الآن من القاعدة</button>
       </form>
       <a class="btn ghost" href="/">تحديث الصفحة</a>
     </div>
+
+    <p class="sub" style="margin-top:-8px">
+      SQLite: <code style="color:#7ddea8">{{ sqlite_path|default('exports/saudi_leads.db') }}</code>
+      · لمنع السكون تمامًا أضف مراقبة خارجية كل 5 دقائق على
+      <code style="color:#9db4cc">/health</code>
+      من
+      <a href="https://uptimerobot.com" target="_blank" rel="noopener" style="color:var(--accent2)">UptimeRobot</a>
+      (مجاني)
+    </p>
 
     <h2 style="font-size:1.15rem;margin:0 0 12px">كل ملفات Excel / CSV</h2>
     {% if files %}

@@ -1,5 +1,5 @@
 """
-Render Web Service: dashboard + Excel downloads + keep-alive + scraper.
+Render Web Service: dashboard + Excel/SQLite downloads + keep-alive + scraper.
 """
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from flask import Flask, abort, jsonify, redirect, render_template, send_file, u
 
 import config
 from database.db import count_companies, get_session, get_state, init_db
+from database.models import ScrapeJob
 from export.csv_export import export_all
 
 logging.basicConfig(
@@ -41,15 +42,16 @@ _scraper_status = {
 _scraper_thread: threading.Thread | None = None
 _lock = threading.Lock()
 
-KEEPALIVE_MINUTES = int(os.getenv("KEEPALIVE_MINUTES", "10"))
+KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", str(config.KEEPALIVE_MINUTES)))
 
 
 def _human_size(n: int) -> str:
+    size = float(n)
     for unit in ("B", "KB", "MB", "GB"):
-        if n < 1024:
-            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
-        n /= 1024
-    return f"{n:.1f} TB"
+        if size < 1024:
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
 
 
 def list_export_files() -> list[dict]:
@@ -59,7 +61,7 @@ def list_export_files() -> list[dict]:
     for path in out_dir.iterdir():
         if not path.is_file():
             continue
-        if path.suffix.lower() not in {".xlsx", ".csv"}:
+        if path.suffix.lower() not in {".xlsx", ".csv", ".db"}:
             continue
         stat = path.stat()
         files.append(
@@ -77,10 +79,10 @@ def list_export_files() -> list[dict]:
 
 
 def safe_export_path(filename: str) -> Path:
-    name = Path(filename).name  # block path traversal
+    name = Path(filename).name
     if not name or name.startswith("."):
         abort(404)
-    if not name.lower().endswith((".xlsx", ".csv")):
+    if not name.lower().endswith((".xlsx", ".csv", ".db")):
         abort(404)
     export_root = Path(config.EXPORT_DIR).resolve()
     path = (export_root / name).resolve()
@@ -125,21 +127,33 @@ def _ensure_scraper():
     logger.info("Scraper thread launched")
 
 
+def _ping_once(label: str, url: str) -> None:
+    try:
+        r = requests.get(url, timeout=15)
+        logger.info("Keep-alive [%s] %s -> %s", label, url, r.status_code)
+    except Exception as exc:
+        logger.warning("Keep-alive [%s] failed: %s", label, exc)
+
+
 def _keepalive_loop():
-    """Ping /health periodically so Render free/starter stays awake."""
+    """Aggressive anti-sleep: ping every ~3 minutes (Render free sleeps ~15 min)."""
+    time.sleep(30)  # first ping soon after boot
     while True:
-        time.sleep(max(KEEPALIVE_MINUTES, 1) * 60)
-        url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("KEEPALIVE_URL")
-        if not url:
-            # Fallback: local self-ping
-            port = os.getenv("PORT", "10000")
-            url = f"http://127.0.0.1:{port}"
-        try:
-            target = url.rstrip("/") + "/health"
-            r = requests.get(target, timeout=20)
-            logger.info("Keep-alive ping %s -> %s", target, r.status_code)
-        except Exception as exc:
-            logger.warning("Keep-alive failed: %s", exc)
+        targets = []
+        external = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("KEEPALIVE_URL")
+        if external:
+            base = external.rstrip("/")
+            targets.append(("external-health", base + "/health"))
+            targets.append(("external-home", base + "/"))
+        port = os.getenv("PORT", "10000")
+        targets.append(("local-health", f"http://127.0.0.1:{port}/health"))
+
+        for label, url in targets:
+            _ping_once(label, url)
+            time.sleep(1)
+
+        wait_min = min(max(KEEPALIVE_MINUTES, 2), 4)
+        time.sleep(wait_min * 60)
 
 
 def _ensure_keepalive():
@@ -149,13 +163,15 @@ def _ensure_keepalive():
     _keepalive_started = True
     t = threading.Thread(target=_keepalive_loop, daemon=True, name="keepalive")
     t.start()
-    logger.info("Keep-alive every %s minutes", KEEPALIVE_MINUTES)
+    logger.info("Keep-alive every ~%s min (anti-sleep)", KEEPALIVE_MINUTES)
 
 
 def _stats():
     alive = bool(_scraper_thread and _scraper_thread.is_alive())
     _scraper_status["thread_alive"] = alive
     companies = 0
+    jobs_done = 0
+    jobs_running = 0
     started = deadline = finished = None
     try:
         with get_session() as session:
@@ -163,10 +179,16 @@ def _stats():
             started = get_state(session, "run_started_at")
             deadline = get_state(session, "run_deadline_at")
             finished = get_state(session, "run_finished_at")
+            jobs_done = session.query(ScrapeJob).filter(ScrapeJob.status == "done").count()
+            jobs_running = (
+                session.query(ScrapeJob).filter(ScrapeJob.status == "running").count()
+            )
     except Exception as exc:
         logger.warning("stats db error: %s", exc)
     return {
         "companies": companies,
+        "jobs_done": jobs_done,
+        "jobs_running": jobs_running,
         "run_started_at": started,
         "run_deadline_at": deadline,
         "run_finished_at": finished,
@@ -174,6 +196,8 @@ def _stats():
         "scraper_error": _scraper_status["error"],
         "keepalive_minutes": KEEPALIVE_MINUTES,
         "files": list_export_files(),
+        "sqlite_path": str(config.SQLITE_PATH),
+        "db_kind": "sqlite" if config.DATABASE_URL.startswith("sqlite") else "postgres",
     }
 
 
@@ -208,6 +232,8 @@ def health():
         {
             "status": "ok",
             "companies": s["companies"],
+            "jobs_done": s["jobs_done"],
+            "jobs_running": s["jobs_running"],
             "run_started_at": s["run_started_at"],
             "run_deadline_at": s["run_deadline_at"],
             "run_finished_at": s["run_finished_at"],
@@ -216,11 +242,8 @@ def health():
             "scraper_error": s["scraper_error"],
             "export_files": len(s["files"]),
             "keepalive_minutes": KEEPALIVE_MINUTES,
-            "database": (
-                config.DATABASE_URL.split("@")[-1]
-                if "@" in config.DATABASE_URL
-                else "sqlite"
-            ),
+            "database": s["db_kind"],
+            "sqlite_path": s["sqlite_path"],
         }
     )
 
@@ -239,6 +262,14 @@ def export_now():
 def download_file(filename: str):
     path = safe_export_path(filename)
     return send_file(path, as_attachment=True, download_name=path.name)
+
+
+@app.get("/download/sqlite")
+def download_sqlite():
+    path = Path(config.SQLITE_PATH)
+    if not path.exists():
+        return jsonify({"error": "sqlite not found"}), 404
+    return send_file(path, as_attachment=True, download_name="saudi_leads.db")
 
 
 @app.get("/download/excel")

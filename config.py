@@ -9,18 +9,29 @@ BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = Path(os.getenv("EXPORT_DIR", BASE_DIR / "exports"))
 EXPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'saudi_leads.db'}"
+# Always prefer local SQLite on the exports disk (survives with Persistent Disk).
+# Set USE_POSTGRES=1 to use DATABASE_URL instead.
+SQLITE_PATH = Path(os.getenv("SQLITE_PATH", str(EXPORT_DIR / "saudi_leads.db")))
+SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-# Render sometimes gives postgres:// — SQLAlchemy needs postgresql://
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+USE_POSTGRES = os.getenv("USE_POSTGRES", "0") == "1"
+if USE_POSTGRES and os.getenv("DATABASE_URL"):
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+else:
+    # Absolute path required for SQLite URL on Linux/Render
+    DATABASE_URL = "sqlite:///" + str(SQLITE_PATH.resolve()).replace("\\", "/")
 
-RUN_HOURS = float(os.getenv("RUN_HOURS", "50"))
-SCRAPE_DELAY_MIN = float(os.getenv("SCRAPE_DELAY_MIN", "2"))
-SCRAPE_DELAY_MAX = float(os.getenv("SCRAPE_DELAY_MAX", "5"))
-EXPORT_INTERVAL_MINUTES = int(os.getenv("EXPORT_INTERVAL_MINUTES", "30"))
+RUN_HOURS = float(os.getenv("RUN_HOURS", "24"))
+SCRAPE_DELAY_MIN = float(os.getenv("SCRAPE_DELAY_MIN", "1"))
+SCRAPE_DELAY_MAX = float(os.getenv("SCRAPE_DELAY_MAX", "3"))
+EXPORT_INTERVAL_MINUTES = int(os.getenv("EXPORT_INTERVAL_MINUTES", "15"))
 MAX_COMPANIES_PER_QUERY = int(os.getenv("MAX_COMPANIES_PER_QUERY", "50"))
 MAX_TOTAL_COMPANIES = int(os.getenv("MAX_TOTAL_COMPANIES", "0"))
+
+# Aggressive keep-alive — Render free sleeps ~15 min; ping every 3 min
+KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", "3"))
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 HTTP_PROXY = os.getenv("HTTP_PROXY", "")

@@ -7,11 +7,20 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 import config
 from database.models import Base, Company, Contact, Lead, ScrapeJob, ScrapeState
 
+_connect_args = {}
+if config.DATABASE_URL.startswith("sqlite"):
+    _connect_args = {"check_same_thread": False}
+
 engine = create_engine(
     config.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
     future=True,
+    connect_args=_connect_args,
+)
+
+SessionLocal = scoped_session(
+    sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 )
 
 SessionLocal = scoped_session(
