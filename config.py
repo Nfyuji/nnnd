@@ -20,7 +20,6 @@ if USE_POSTGRES and os.getenv("DATABASE_URL"):
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 else:
-    # Absolute path required for SQLite URL on Linux/Render
     DATABASE_URL = "sqlite:///" + str(SQLITE_PATH.resolve()).replace("\\", "/")
 
 RUN_HOURS = float(os.getenv("RUN_HOURS", "24"))
@@ -29,8 +28,6 @@ SCRAPE_DELAY_MAX = float(os.getenv("SCRAPE_DELAY_MAX", "3"))
 EXPORT_INTERVAL_MINUTES = int(os.getenv("EXPORT_INTERVAL_MINUTES", "15"))
 MAX_COMPANIES_PER_QUERY = int(os.getenv("MAX_COMPANIES_PER_QUERY", "50"))
 MAX_TOTAL_COMPANIES = int(os.getenv("MAX_TOTAL_COMPANIES", "0"))
-
-# Aggressive keep-alive — Render free sleeps ~15 min; ping every 3 min
 KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", "3"))
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
@@ -44,51 +41,57 @@ if HTTP_PROXY or HTTPS_PROXY:
         "https": HTTPS_PROXY or HTTP_PROXY,
     }
 
-# Saudi cities — full coverage for continuous 50h rotation
+# تغطية شاملة: كل مناطق ومدن السعودية تقريباً
 SAUDI_CITIES = [
-    "الرياض",
-    "جدة",
-    "الدمام",
-    "مكة",
-    "المدينة المنورة",
-    "الخبر",
-    "الطائف",
-    "تبوك",
-    "بريدة",
-    "خميس مشيط",
-    "حائل",
-    "نجران",
-    "الجبيل",
-    "ينبع",
-    "أبها",
-    "القطيف",
-    "الأحساء",
-    "الخرج",
-    "عرعر",
-    "سكاكا",
-    "جازان",
-    "الباحة",
-    "الرس",
-    "عنيزة",
-    "المبرز",
-    "سيهات",
-    "الدمام الخبر",
-    "الرياض شمال",
-    "جدة أبحر",
+    # الرياض
+    "الرياض", "الخرج", "الدوادمي", "المجمعة", "القويعية", "وادي الدواسر",
+    "الزلفي", "شقراء", "عفيف", "حوطة بني تميم", "الأفلاج", "السليل",
+    "رماح", "ثادق", "حريملاء", "الدرعية", "المزاحمية",
+    # مكة
+    "مكة", "جدة", "الطائف", "رابغ", "الليث", "خليص", "القنفذة",
+    "الخرمة", "رنية", "تربة", "الجموم", "الكامل", "أضم",
+    "جدة أبحر", "جدة الحمراء",
+    # المدينة
+    "المدينة المنورة", "ينبع", "العلا", "بدر", "خيبر", "الحناكية", "المهد",
+    # الشرقية
+    "الدمام", "الخبر", "الظهران", "الجبيل", "القطيف", "الأحساء", "الهفوف",
+    "المبرز", "سيهات", "صفوى", "رأس تنورة", "بقيق", "الخفجي", "النعيرية",
+    "حفر الباطن", "قرية العليا", "الدمام الخبر",
+    # القصيم
+    "بريدة", "عنيزة", "الرس", "المذنب", "البكيرية", "البدائع", "رياض الخبراء",
+    "عيون الجواء", "الأسياح",
+    # عسير
+    "أبها", "خميس مشيط", "أحد رفيدة", "النماص", "بيشة", "محايل عسير",
+    "سراة عبيدة", "ظهران الجنوب", "المجاردة", "رجال ألمع",
+    # تبوك / حائل / حدود / جوف
+    "تبوك", "ضباء", "تيماء", "أملج", "الوجه", "حقل",
+    "حائل", "بقعاء", "الغزالة",
+    "عرعر", "رفحاء", "طريف",
+    "سكاكا", "القريات", "دومة الجندل", "طبرجل",
+    # جازان / نجران / الباحة
+    "جازان", "صبيا", "أبو عريش", "صامطة", "فرسان", "الدرب",
+    "نجران", "شرورة", "حبونا",
+    "الباحة", "بلجرشي", "المندق", "المخواة",
 ]
 
-# كل نشاط يحتاج تسويق / انستا / تيك توك / حملات / رد عملاء / ربط منصات → BusinessOS
+# كل نشاط تجاري محتمل يشترك في BusinessOS
 SEARCH_CATEGORIES = [
-    # —— متاجر إلكترونية ——
+    # متاجر ومنتجات
     {"query_ar": "متجر الكتروني", "category": "ecommerce", "industry": "retail"},
     {"query_ar": "متجر سلة", "category": "ecommerce_salla", "industry": "retail"},
     {"query_ar": "متجر زد", "category": "ecommerce_zid", "industry": "retail"},
     {"query_ar": "متجر شوبيفاي", "category": "ecommerce_shopify", "industry": "retail"},
     {"query_ar": "متجر الكتروني ملابس", "category": "ecommerce_fashion", "industry": "retail"},
+    {"query_ar": "متجر منتجات", "category": "product_store", "industry": "retail"},
+    {"query_ar": "مصنع", "category": "factory", "industry": "manufacturing"},
+    {"query_ar": "شركة منتجات", "category": "product_company", "industry": "manufacturing"},
+    {"query_ar": "توريد", "category": "supply", "industry": "wholesale"},
+    {"query_ar": "جملة", "category": "wholesale", "industry": "wholesale"},
     {"query_ar": "متجر عطور", "category": "perfume_store", "industry": "retail"},
     {"query_ar": "متجر هدايا", "category": "gift_store", "industry": "retail"},
+    {"query_ar": "محل ورد", "category": "florist", "industry": "retail"},
+    {"query_ar": "محل زهور", "category": "flowers", "industry": "retail"},
     {"query_ar": "متجر اكسسوارات", "category": "accessories", "industry": "retail"},
-    # —— محلات تجزئة تحتاج رد عملاء ——
     {"query_ar": "محل جوالات", "category": "phone_shop", "industry": "retail"},
     {"query_ar": "محل موبايلات", "category": "mobile_shop", "industry": "retail"},
     {"query_ar": "محل كمبيوتر", "category": "computer_shop", "industry": "retail"},
@@ -98,15 +101,26 @@ SEARCH_CATEGORIES = [
     {"query_ar": "محل اثاث", "category": "furniture", "industry": "retail"},
     {"query_ar": "محل اجهزة منزلية", "category": "appliances", "industry": "retail"},
     {"query_ar": "سوبر ماركت", "category": "supermarket", "industry": "retail"},
+    {"query_ar": "هايبر ماركت", "category": "hypermarket", "industry": "retail"},
+    {"query_ar": "سوق", "category": "market", "industry": "retail"},
     {"query_ar": "بقالة", "category": "grocery", "industry": "retail"},
+    {"query_ar": "تموينات", "category": "provisions", "industry": "retail"},
     {"query_ar": "محل ذهب", "category": "jewelry", "industry": "retail"},
     {"query_ar": "محل نظارات", "category": "optics", "industry": "retail"},
     {"query_ar": "محل العاب", "category": "toys", "industry": "retail"},
     {"query_ar": "مكتبة", "category": "bookstore", "industry": "retail"},
-    # —— أكل ومقاهي (رد طلبات / توصيل / سوشيال) ——
+    {"query_ar": "محل ادوات منزلية", "category": "homeware", "industry": "retail"},
+    {"query_ar": "محل مواد بناء", "category": "building_materials", "industry": "retail"},
+    {"query_ar": "محل سيارات", "category": "car_dealer", "industry": "automotive"},
+    {"query_ar": "معرض سيارات", "category": "car_showroom", "industry": "automotive"},
+    {"query_ar": "قطع غيار", "category": "auto_parts", "industry": "automotive"},
+    {"query_ar": "محل الحيوانات الاليفة", "category": "pet_shop", "industry": "retail"},
+    {"query_ar": "محل رياضي", "category": "sports_shop", "industry": "retail"},
+    # أكل ومقاهي
     {"query_ar": "مطعم", "category": "restaurant", "industry": "food"},
     {"query_ar": "مقهى", "category": "cafe", "industry": "food"},
     {"query_ar": "كافيه", "category": "coffee_shop", "industry": "food"},
+    {"query_ar": "كوفي شوب", "category": "coffee_shop2", "industry": "food"},
     {"query_ar": "عصائر", "category": "juice", "industry": "food"},
     {"query_ar": "حلويات", "category": "sweets", "industry": "food"},
     {"query_ar": "مخبز", "category": "bakery", "industry": "food"},
@@ -117,11 +131,16 @@ SEARCH_CATEGORIES = [
     {"query_ar": "مطبخ شعبي", "category": "traditional_food", "industry": "food"},
     {"query_ar": "مطعم هندي", "category": "indian_restaurant", "industry": "food"},
     {"query_ar": "مطعم ايطالي", "category": "italian_restaurant", "industry": "food"},
+    {"query_ar": "مطعم اسماك", "category": "seafood", "industry": "food"},
+    {"query_ar": "بوفيه", "category": "buffet", "industry": "food"},
     {"query_ar": "كاترينق", "category": "catering", "industry": "food"},
-    # —— تسويق وإعلانات (كل الأنواع) ——
+    {"query_ar": "شاحنة طعام", "category": "food_truck", "industry": "food"},
+    # تسويق وإعلانات وترويج
     {"query_ar": "شركة تسويق", "category": "marketing", "industry": "marketing"},
     {"query_ar": "شركة تسويق رقمي", "category": "digital_marketing", "industry": "marketing"},
     {"query_ar": "وكالة اعلانات", "category": "advertising", "industry": "marketing"},
+    {"query_ar": "دعاية واعلان", "category": "promo_ads", "industry": "marketing"},
+    {"query_ar": "ترويج", "category": "promotion", "industry": "marketing"},
     {"query_ar": "اعلانات جوجل", "category": "google_ads", "industry": "marketing"},
     {"query_ar": "اعلانات سناب", "category": "snap_ads", "industry": "marketing"},
     {"query_ar": "اعلانات انستقرام", "category": "instagram_ads", "industry": "marketing"},
@@ -132,33 +151,56 @@ SEARCH_CATEGORIES = [
     {"query_ar": "مؤثرين", "category": "influencers", "industry": "marketing"},
     {"query_ar": "تصميم جرافيك", "category": "graphic_design", "industry": "marketing"},
     {"query_ar": "مونتاج فيديو", "category": "video_editing", "industry": "media"},
-    # —— عيادات وصحة (حجز + رد هاتف) ——
+    {"query_ar": "طباعة لوحات اعلانية", "category": "billboards", "industry": "marketing"},
+    # صحة
     {"query_ar": "عيادة", "category": "clinic", "industry": "healthcare"},
     {"query_ar": "عيادة اسنان", "category": "dental", "industry": "healthcare"},
     {"query_ar": "عيادة جلدية", "category": "dermatology", "industry": "healthcare"},
     {"query_ar": "عيادة تجميل", "category": "cosmetic_clinic", "industry": "healthcare"},
     {"query_ar": "عيادة عيون", "category": "eye_clinic", "industry": "healthcare"},
     {"query_ar": "عيادة نساء وولادة", "category": "obgyn", "industry": "healthcare"},
+    {"query_ar": "عيادة اطفال", "category": "pediatrics", "industry": "healthcare"},
     {"query_ar": "مركز علاج طبيعي", "category": "physio", "industry": "healthcare"},
     {"query_ar": "مستشفى", "category": "hospital", "industry": "healthcare"},
     {"query_ar": "صيدلية", "category": "pharmacy", "industry": "healthcare"},
     {"query_ar": "مختبر طبي", "category": "lab", "industry": "healthcare"},
     {"query_ar": "مركز اشعة", "category": "radiology", "industry": "healthcare"},
     {"query_ar": "عيادة بيطرية", "category": "vet", "industry": "healthcare"},
-    # —— جمال ولياقة ——
+    {"query_ar": "مجمع طبي", "category": "medical_complex", "industry": "healthcare"},
+    # كوافير وجمال
+    {"query_ar": "كوافير", "category": "hairdresser", "industry": "beauty"},
+    {"query_ar": "كوافير نسائي", "category": "women_salon", "industry": "beauty"},
     {"query_ar": "صالون تجميل", "category": "beauty", "industry": "beauty"},
     {"query_ar": "صالون حلاقة", "category": "barber", "industry": "beauty"},
     {"query_ar": "سبا", "category": "spa", "industry": "beauty"},
     {"query_ar": "مركز ليزر", "category": "laser", "industry": "beauty"},
+    {"query_ar": "مناكير", "category": "nails", "industry": "beauty"},
     {"query_ar": "نادي رياضي", "category": "gym", "industry": "fitness"},
     {"query_ar": "جيم نسائي", "category": "women_gym", "industry": "fitness"},
     {"query_ar": "يوجا", "category": "yoga", "industry": "fitness"},
-    # —— عقار ——
+    {"query_ar": "مسبح", "category": "swimming", "industry": "fitness"},
+    # عقار
     {"query_ar": "عقارات", "category": "real_estate", "industry": "real_estate"},
     {"query_ar": "مكتب عقاري", "category": "real_estate_agency", "industry": "real_estate"},
     {"query_ar": "تطوير عقاري", "category": "real_estate_dev", "industry": "real_estate"},
     {"query_ar": "وسيط عقاري", "category": "realtor", "industry": "real_estate"},
-    # —— خدمات تحتاج رد هاتف / واتساب ——
+    # فنادق شاليهات منتزهات
+    {"query_ar": "فندق", "category": "hotel", "industry": "hospitality"},
+    {"query_ar": "شقق مفروشة", "category": "furnished_apartments", "industry": "hospitality"},
+    {"query_ar": "منتجع", "category": "resort", "industry": "hospitality"},
+    {"query_ar": "شاليه", "category": "chalet", "industry": "hospitality"},
+    {"query_ar": "شاليهات", "category": "chalets", "industry": "hospitality"},
+    {"query_ar": "استراحة", "category": "rest_house", "industry": "hospitality"},
+    {"query_ar": "منتزه", "category": "park", "industry": "entertainment"},
+    {"query_ar": "حديقة", "category": "garden", "industry": "entertainment"},
+    {"query_ar": "ملاهي", "category": "amusement", "industry": "entertainment"},
+    {"query_ar": "مدينة العاب", "category": "theme_park", "industry": "entertainment"},
+    {"query_ar": "سينما", "category": "cinema", "industry": "entertainment"},
+    {"query_ar": "قاعة افراح", "category": "wedding_hall", "industry": "events"},
+    {"query_ar": "تنظيم مناسبات", "category": "event_planner", "industry": "events"},
+    {"query_ar": "شركة سياحة", "category": "tourism", "industry": "travel"},
+    {"query_ar": "مخيم", "category": "camp", "industry": "entertainment"},
+    # خدمات
     {"query_ar": "مغسلة سيارات", "category": "car_wash", "industry": "automotive"},
     {"query_ar": "ورشة سيارات", "category": "auto_repair", "industry": "automotive"},
     {"query_ar": "مركز صيانة جوالات", "category": "phone_repair", "industry": "services"},
@@ -174,30 +216,24 @@ SEARCH_CATEGORIES = [
     {"query_ar": "كهربائي", "category": "electrician", "industry": "services"},
     {"query_ar": "سباك", "category": "plumber", "industry": "services"},
     {"query_ar": "تكييف", "category": "ac_service", "industry": "services"},
-    # —— تعليم وتدريب ——
+    {"query_ar": "محطة بنزين", "category": "gas_station", "industry": "automotive"},
+    {"query_ar": "وكالة سفر", "category": "travel_agency", "industry": "travel"},
+    # تعليم وتقنية
     {"query_ar": "مركز تدريب", "category": "training", "industry": "education"},
     {"query_ar": "معهد لغة انجليزية", "category": "english_institute", "industry": "education"},
     {"query_ar": "حضانة", "category": "nursery", "industry": "education"},
     {"query_ar": "مدرسة اهلية", "category": "private_school", "industry": "education"},
     {"query_ar": "دروس خصوصية", "category": "tutoring", "industry": "education"},
-    # —— تقنية ووكالات رقمية ——
+    {"query_ar": "روضة اطفال", "category": "kindergarten", "industry": "education"},
     {"query_ar": "شركة تقنية", "category": "tech", "industry": "technology"},
     {"query_ar": "تصميم مواقع", "category": "web_design", "industry": "technology"},
     {"query_ar": "تطبيقات جوال", "category": "app_dev", "industry": "technology"},
     {"query_ar": "شركة برمجة", "category": "software", "industry": "technology"},
     {"query_ar": "استضافة مواقع", "category": "hosting", "industry": "technology"},
-    # —— إعلام وتصوير ——
     {"query_ar": "استوديو تصوير", "category": "photography", "industry": "media"},
     {"query_ar": "تصوير مناسبات", "category": "event_photo", "industry": "media"},
     {"query_ar": "انتاج فيديو", "category": "video_production", "industry": "media"},
-    {"query_ar": "قاعة افراح", "category": "wedding_hall", "industry": "events"},
-    {"query_ar": "تنظيم مناسبات", "category": "event_planner", "industry": "events"},
-    # —— سياحة وضيافة ——
-    {"query_ar": "شركة سياحة", "category": "tourism", "industry": "travel"},
-    {"query_ar": "فندق", "category": "hotel", "industry": "hospitality"},
-    {"query_ar": "شقق مفروشة", "category": "furnished_apartments", "industry": "hospitality"},
-    {"query_ar": "منتجع", "category": "resort", "industry": "hospitality"},
-    # —— أعمال ومهن ——
+    # أعمال
     {"query_ar": "مقاولات", "category": "construction", "industry": "construction"},
     {"query_ar": "محاسبة", "category": "accounting", "industry": "finance"},
     {"query_ar": "محاماة", "category": "law", "industry": "legal"},
@@ -205,7 +241,9 @@ SEARCH_CATEGORIES = [
     {"query_ar": "تأمين", "category": "insurance", "industry": "finance"},
     {"query_ar": "مكتب ترجمة", "category": "translation", "industry": "services"},
     {"query_ar": "مطبعة", "category": "printing", "industry": "services"},
-    {"query_ar": "دعاية واعلان", "category": "promo_ads", "industry": "marketing"},
+    {"query_ar": "شركة استيراد وتصدير", "category": "import_export", "industry": "trade"},
+    {"query_ar": "مؤسسة تجارية", "category": "commercial_firm", "industry": "trade"},
+    {"query_ar": "شركة مساهمة", "category": "corporation", "industry": "trade"},
 ]
 
 USER_AGENTS = [

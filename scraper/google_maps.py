@@ -160,131 +160,84 @@ CITY_COORDS = {
 # OSM tags for BusinessOS target niches (marketing / social / phone reply)
 OSM_TAG_MAP = {
     "متجر الكتروني": [("shop", "yes"), ("shop", "department_store"), ("shop", "clothes")],
-    "متجر سلة": [("shop", "yes"), ("shop", "clothes")],
-    "متجر زد": [("shop", "yes")],
-    "متجر شوبيفاي": [("shop", "yes")],
-    "متجر الكتروني ملابس": [("shop", "clothes"), ("shop", "fashion")],
-    "متجر عطور": [("shop", "perfume"), ("shop", "cosmetics")],
-    "متجر هدايا": [("shop", "gift")],
-    "متجر اكسسوارات": [("shop", "jewelry"), ("shop", "fashion_accessories")],
-    "محل جوالات": [("shop", "mobile_phone"), ("shop", "electronics")],
-    "محل موبايلات": [("shop", "mobile_phone")],
-    "محل كمبيوتر": [("shop", "computer")],
-    "محل ملابس": [("shop", "clothes"), ("shop", "fashion")],
-    "بوتيك": [("shop", "clothes"), ("shop", "boutique")],
-    "محل احذية": [("shop", "shoes")],
-    "محل اثاث": [("shop", "furniture")],
-    "محل اجهزة منزلية": [("shop", "appliance"), ("shop", "electronics")],
+    "محل ورد": [("shop", "florist")],
+    "محل زهور": [("shop", "florist")],
+    "كوافير": [("shop", "hairdresser"), ("shop", "beauty")],
+    "كوافير نسائي": [("shop", "hairdresser"), ("shop", "beauty")],
     "سوبر ماركت": [("shop", "supermarket")],
-    "بقالة": [("shop", "convenience"), ("shop", "grocery")],
-    "محل ذهب": [("shop", "jewelry")],
-    "محل نظارات": [("shop", "optician")],
-    "محل العاب": [("shop", "toys")],
-    "مكتبة": [("shop", "books")],
+    "هايبر ماركت": [("shop", "supermarket")],
+    "سوق": [("amenity", "marketplace"), ("shop", "convenience")],
+    "صيدلية": [("amenity", "pharmacy")],
+    "عيادة": [("amenity", "clinic"), ("amenity", "doctors")],
     "مطعم": [("amenity", "restaurant"), ("amenity", "fast_food")],
     "مقهى": [("amenity", "cafe")],
     "كافيه": [("amenity", "cafe")],
-    "عصائر": [("amenity", "cafe"), ("shop", "beverages")],
-    "حلويات": [("shop", "confectionery"), ("shop", "pastry")],
-    "مخبز": [("shop", "bakery")],
-    "فاست فود": [("amenity", "fast_food")],
-    "شاورما": [("amenity", "fast_food"), ("amenity", "restaurant")],
-    "برجر": [("amenity", "fast_food")],
-    "بيتزا": [("amenity", "fast_food"), ("amenity", "restaurant")],
-    "مطبخ شعبي": [("amenity", "restaurant")],
-    "مطعم هندي": [("amenity", "restaurant")],
-    "مطعم ايطالي": [("amenity", "restaurant")],
-    "كاترينق": [("craft", "caterer")],
-    "شركة تسويق": [("office", "advertising_agency"), ("office", "company")],
-    "شركة تسويق رقمي": [("office", "advertising_agency")],
-    "وكالة اعلانات": [("office", "advertising_agency")],
-    "اعلانات جوجل": [("office", "advertising_agency")],
-    "اعلانات سناب": [("office", "advertising_agency")],
-    "اعلانات انستقرام": [("office", "advertising_agency")],
-    "اعلانات تيك توك": [("office", "advertising_agency")],
-    "إدارة حسابات سوشيال ميديا": [("office", "advertising_agency")],
-    "وكالة علاقات عامة": [("office", "advertising_agency")],
-    "شركة تسويق بالمحتوى": [("office", "advertising_agency")],
-    "مؤثرين": [("office", "advertising_agency")],
-    "تصميم جرافيك": [("office", "graphic_design"), ("craft", "graphic_design")],
-    "مونتاج فيديو": [("craft", "electronics_repair"), ("office", "company")],
-    "عيادة": [("amenity", "clinic"), ("amenity", "doctors")],
-    "عيادة اسنان": [("amenity", "dentist")],
-    "عيادة جلدية": [("amenity", "clinic"), ("amenity", "doctors")],
-    "عيادة تجميل": [("amenity", "clinic")],
-    "عيادة عيون": [("amenity", "clinic")],
-    "عيادة نساء وولادة": [("amenity", "clinic")],
-    "مركز علاج طبيعي": [("amenity", "clinic")],
-    "مستشفى": [("amenity", "hospital")],
-    "صيدلية": [("amenity", "pharmacy")],
-    "مختبر طبي": [("healthcare", "laboratory")],
-    "مركز اشعة": [("amenity", "clinic")],
-    "عيادة بيطرية": [("amenity", "veterinary")],
-    "صالون تجميل": [("shop", "beauty"), ("shop", "hairdresser")],
-    "صالون حلاقة": [("shop", "hairdresser")],
-    "سبا": [("leisure", "spa"), ("amenity", "spa")],
-    "مركز ليزر": [("shop", "beauty"), ("amenity", "clinic")],
-    "نادي رياضي": [("leisure", "fitness_centre"), ("leisure", "sports_centre")],
-    "جيم نسائي": [("leisure", "fitness_centre")],
-    "يوجا": [("leisure", "fitness_centre")],
-    "عقارات": [("office", "estate_agent")],
-    "مكتب عقاري": [("office", "estate_agent")],
-    "تطوير عقاري": [("office", "estate_agent")],
-    "وسيط عقاري": [("office", "estate_agent")],
-    "مغسلة سيارات": [("amenity", "car_wash")],
-    "ورشة سيارات": [("shop", "car_repair"), ("craft", "car_repair")],
-    "مركز صيانة جوالات": [("shop", "mobile_phone"), ("craft", "electronics_repair")],
-    "شركة تنظيف": [("office", "cleaning_agency")],
-    "شركة نقل عفش": [("office", "moving_company")],
-    "شركة مكافحة حشرات": [("office", "company")],
-    "شركة امن": [("office", "security")],
-    "تأجير سيارات": [("amenity", "car_rental")],
-    "توصيل طلبات": [("office", "logistic")],
-    "شركة شحن": [("office", "logistic"), ("amenity", "post_office")],
-    "مغسلة ملابس": [("shop", "laundry"), ("shop", "dry_cleaning")],
-    "خياطة": [("craft", "tailor"), ("shop", "tailor")],
-    "كهربائي": [("craft", "electrician")],
-    "سباك": [("craft", "plumber")],
-    "تكييف": [("craft", "hvac")],
-    "مركز تدريب": [("amenity", "college"), ("office", "educational_institution")],
-    "معهد لغة انجليزية": [("amenity", "language_school"), ("amenity", "school")],
-    "حضانة": [("amenity", "kindergarten")],
-    "مدرسة اهلية": [("amenity", "school")],
-    "دروس خصوصية": [("office", "educational_institution")],
-    "شركة تقنية": [("office", "it"), ("office", "company")],
-    "تصميم مواقع": [("office", "it")],
-    "تطبيقات جوال": [("office", "it")],
-    "شركة برمجة": [("office", "it")],
-    "استضافة مواقع": [("office", "it")],
-    "استوديو تصوير": [("shop", "photo"), ("craft", "photographer")],
-    "تصوير مناسبات": [("craft", "photographer")],
-    "انتاج فيديو": [("office", "company")],
-    "قاعة افراح": [("amenity", "events_venue"), ("leisure", "dance")],
-    "تنظيم مناسبات": [("office", "company")],
-    "شركة سياحة": [("office", "travel_agent"), ("tourism", "travel_agency")],
     "فندق": [("tourism", "hotel")],
-    "شقق مفروشة": [("tourism", "apartment")],
-    "منتجع": [("tourism", "resort"), ("tourism", "hotel")],
-    "مقاولات": [("office", "construction_company"), ("craft", "builder")],
-    "محاسبة": [("office", "accountant")],
-    "محاماة": [("office", "lawyer")],
-    "استشارات اعمال": [("office", "consulting")],
-    "تأمين": [("office", "insurance")],
-    "مكتب ترجمة": [("office", "translation")],
-    "مطبعة": [("craft", "printer"), ("shop", "copyshop")],
+    "شاليه": [("tourism", "chalet"), ("tourism", "apartment")],
+    "شاليهات": [("tourism", "chalet")],
+    "منتزه": [("leisure", "park")],
+    "حديقة": [("leisure", "park"), ("leisure", "garden")],
+    "ملاهي": [("tourism", "theme_park"), ("leisure", "amusement_arcade")],
+    "شركة تسويق": [("office", "advertising_agency")],
+    "وكالة اعلانات": [("office", "advertising_agency")],
     "دعاية واعلان": [("office", "advertising_agency")],
+    "ترويج": [("office", "advertising_agency")],
+    "صالون تجميل": [("shop", "beauty"), ("shop", "hairdresser")],
+    "مكتب عقاري": [("office", "estate_agent")],
+    "محل جوالات": [("shop", "mobile_phone")],
+    "بقالة": [("shop", "convenience"), ("shop", "grocery")],
 }
 
+
+def _infer_osm_tags(query: str) -> list[tuple[str, str]]:
+    """Smart fallback OSM tags from Arabic query keywords."""
+    q = query or ""
+    rules = [
+        (("ورد", "زهور"), [("shop", "florist")]),
+        (("كوافير", "حلاقة", "تجميل"), [("shop", "hairdresser"), ("shop", "beauty")]),
+        (("صيدل",), [("amenity", "pharmacy")]),
+        (("عيادة", "مستشفى", "طبي"), [("amenity", "clinic"), ("amenity", "doctors"), ("amenity", "hospital")]),
+        (("مطعم", "شاورما", "برجر", "بيتزا", "فاست"), [("amenity", "restaurant"), ("amenity", "fast_food")]),
+        (("مقهى", "كافيه", "كوفي", "عصائر"), [("amenity", "cafe")]),
+        (("فندق", "منتجع", "شقق"), [("tourism", "hotel"), ("tourism", "apartment")]),
+        (("شاليه", "استراحة"), [("tourism", "chalet")]),
+        (("منتزه", "حديقة", "ملاهي"), [("leisure", "park"), ("tourism", "theme_park")]),
+        (("تسويق", "اعلان", "ترويج", "دعاية"), [("office", "advertising_agency")]),
+        (("عقار",), [("office", "estate_agent")]),
+        (("جوال", "موبايل"), [("shop", "mobile_phone")]),
+        (("سوبر", "هايبر", "تموين", "بقالة", "سوق"), [("shop", "supermarket"), ("shop", "convenience")]),
+        (("ملابس", "بوتيك"), [("shop", "clothes")]),
+        (("مصنع", "منتجات", "جملة"), [("man_made", "works"), ("office", "company"), ("shop", "wholesale")]),
+    ]
+    for keys, tags in rules:
+        if any(k in q for k in keys):
+            return tags
+    return [("office", "company"), ("shop", "yes"), ("amenity", "restaurant"), ("amenity", "cafe")]
 
 
 def search_osm(query: str, city: str, max_results: int = 40) -> list[dict]:
     coords = CITY_COORDS.get(city)
     if not coords:
+        # Still try Nominatim geocode for unknown towns
+        try:
+            geo = _session().get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": f"{city}, Saudi Arabia", "format": "json", "limit": 1},
+                timeout=20,
+                headers={"User-Agent": random.choice(config.USER_AGENTS)},
+            )
+            arr = geo.json()
+            if arr:
+                coords = (float(arr[0]["lat"]), float(arr[0]["lon"]))
+                CITY_COORDS[city] = coords
+        except Exception:
+            return []
+    if not coords:
         return []
 
     lat, lon = coords
-    radius = 25000  # meters
-    tags = OSM_TAG_MAP.get(query, [('office', 'company'), ('shop', 'yes')])
+    radius = 30000  # meters — wider coverage for suburbs
+    tags = OSM_TAG_MAP.get(query) or _infer_osm_tags(query)
 
     tag_filters = "\n".join(
         f'  node["{k}"="{v}"](around:{radius},{lat},{lon});\n'

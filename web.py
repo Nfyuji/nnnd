@@ -225,6 +225,19 @@ def dashboard():
     return render_template("dashboard.html", **_stats())
 
 
+@app.get("/api/coverage")
+def coverage():
+    return jsonify(
+        {
+            "categories": len(config.SEARCH_CATEGORIES),
+            "cities": len(config.SAUDI_CITIES),
+            "total_jobs_per_cycle": len(config.SEARCH_CATEGORIES) * len(config.SAUDI_CITIES),
+            "category_list": [c["query_ar"] for c in config.SEARCH_CATEGORIES],
+            "city_list": list(config.SAUDI_CITIES),
+        }
+    )
+
+
 @app.get("/health")
 def health():
     s = _stats()
