@@ -118,21 +118,16 @@ Environment:
 
 اجمع بيانات التواصل العامة فقط، التزم بشروط المواقع ونظام حماية البيانات الشخصية في السعودية، ولا ترسل رسائل مزعجة بدون موافقة.
 
-## Fast local (15 دقيقة على جهازك)
+## Fast local بدون Google Places (على جهازك)
 
-```bash
-# 1) انسخ الإعدادات
+```powershell
+cd saudi-leads-scraper
+.\.venv\Scripts\activate
 copy .env.fast.example .env
-
-# 2) ضع GOOGLE_PLACES_API_KEY في .env
-
-# 3) شغّل
 python fast_local.py
 ```
 
-يجمع **فقط** الشركات اللي فيها جوال أو إيميل، بـ 32 عامل متوازي، لمدة 15 دقيقة.
-الملفات تطلع في `exports/` :
-- `saudi_fast_contacts_with_contacts_latest.xlsx`
-- `saudi_contacts_clean_latest.csv`
+يستخدم **Bing + DuckDuckGo + OpenStreetMap** فقط، ويحفظ الشركات اللي فيها **جوال أو إيميل**.
+الملفات في `exports/`.
 
-> هدف 30 ألف / 15 دقيقة يحتاج Google Places API + جهاز قوي. بدون المفتاح النتائج أقل بكثير.
+> بدون Places API هدف 30 ألف/15 د غير واقعي عادةً، لكن هذا أسرع وضع مجاني متاح.
