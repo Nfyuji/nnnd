@@ -31,7 +31,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("web")
 
-app = Flask(__name__, template_folder=str(ROOT / "templates"))
+app = Flask(
+    __name__,
+    template_folder=str(ROOT / "templates"),
+    static_folder=str(ROOT / "static") if (ROOT / "static").exists() else None,
+)
 _started = False
 _keepalive_started = False
 _scraper_status = {
@@ -42,7 +46,7 @@ _scraper_status = {
 _scraper_thread: threading.Thread | None = None
 _lock = threading.Lock()
 
-KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", str(config.KEEPALIVE_MINUTES)))
+KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", str(getattr(config, "KEEPALIVE_MINUTES", 3))))
 
 
 def _human_size(n: int) -> str:
@@ -58,22 +62,25 @@ def list_export_files() -> list[dict]:
     out_dir = Path(config.EXPORT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     files = []
-    for path in out_dir.iterdir():
-        if not path.is_file():
-            continue
-        if path.suffix.lower() not in {".xlsx", ".csv", ".db"}:
-            continue
-        stat = path.stat()
-        files.append(
-            {
-                "name": path.name,
-                "ext": path.suffix.lower().lstrip("."),
-                "size": stat.st_size,
-                "size_human": _human_size(stat.st_size),
-                "mtime": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
-                "mtime_ts": stat.st_mtime,
-            }
-        )
+    try:
+        for path in out_dir.iterdir():
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in {".xlsx", ".csv", ".db"}:
+                continue
+            stat = path.stat()
+            files.append(
+                {
+                    "name": path.name,
+                    "ext": path.suffix.lower().lstrip("."),
+                    "size": stat.st_size,
+                    "size_human": _human_size(stat.st_size),
+                    "mtime": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                    "mtime_ts": stat.st_mtime,
+                }
+            )
+    except Exception as exc:
+        logger.warning("list_export_files: %s", exc)
     files.sort(key=lambda x: x["mtime_ts"], reverse=True)
     return files
 
@@ -136,8 +143,7 @@ def _ping_once(label: str, url: str) -> None:
 
 
 def _keepalive_loop():
-    """Aggressive anti-sleep: ping every ~3 minutes (Render free sleeps ~15 min)."""
-    time.sleep(30)  # first ping soon after boot
+    time.sleep(30)
     while True:
         targets = []
         external = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("KEEPALIVE_URL")
@@ -147,11 +153,9 @@ def _keepalive_loop():
             targets.append(("external-home", base + "/"))
         port = os.getenv("PORT", "10000")
         targets.append(("local-health", f"http://127.0.0.1:{port}/health"))
-
         for label, url in targets:
             _ping_once(label, url)
             time.sleep(1)
-
         wait_min = min(max(KEEPALIVE_MINUTES, 2), 4)
         time.sleep(wait_min * 60)
 
@@ -161,22 +165,17 @@ def _ensure_keepalive():
     if _keepalive_started:
         return
     _keepalive_started = True
-    t = threading.Thread(target=_keepalive_loop, daemon=True, name="keepalive")
-    t.start()
-    logger.info("Keep-alive every ~%s min (anti-sleep)", KEEPALIVE_MINUTES)
+    threading.Thread(target=_keepalive_loop, daemon=True, name="keepalive").start()
+    logger.info("Keep-alive every ~%s min", KEEPALIVE_MINUTES)
 
 
 def _stats():
-    from sqlalchemy import or_, and_, func
+    from sqlalchemy import or_, and_
 
     alive = bool(_scraper_thread and _scraper_thread.is_alive())
     _scraper_status["thread_alive"] = alive
-    companies = 0
-    with_email = 0
-    with_phone = 0
-    with_contact = 0
-    jobs_done = 0
-    jobs_running = 0
+    companies = with_email = with_phone = with_contact = 0
+    jobs_done = jobs_running = 0
     started = deadline = finished = None
     try:
         with get_session() as session:
@@ -205,9 +204,7 @@ def _stats():
             deadline = get_state(session, "run_deadline_at")
             finished = get_state(session, "run_finished_at")
             jobs_done = session.query(ScrapeJob).filter(ScrapeJob.status == "done").count()
-            jobs_running = (
-                session.query(ScrapeJob).filter(ScrapeJob.status == "running").count()
-            )
+            jobs_running = session.query(ScrapeJob).filter(ScrapeJob.status == "running").count()
     except Exception as exc:
         logger.warning("stats db error: %s", exc)
     return {
@@ -225,9 +222,44 @@ def _stats():
         "scraper_error": _scraper_status["error"],
         "keepalive_minutes": KEEPALIVE_MINUTES,
         "files": list_export_files(),
-        "sqlite_path": str(config.SQLITE_PATH),
-        "db_kind": "sqlite" if config.DATABASE_URL.startswith("sqlite") else "postgres",
+        "sqlite_path": str(getattr(config, "SQLITE_PATH", "")),
+        "db_kind": "sqlite" if str(config.DATABASE_URL).startswith("sqlite") else "postgres",
     }
+
+
+def _fallback_html(s: dict) -> str:
+    err = (s.get("scraper_error") or "")[:500]
+    files = s.get("files") or []
+    rows = "".join(
+        f"<tr><td>{f['name']}</td><td>{f['size_human']}</td>"
+        f"<td><a href='/files/{f['name']}'>تنزيل</a></td></tr>"
+        for f in files[:30]
+    ) or "<tr><td colspan=3>لا ملفات بعد — انتظر الجمع</td></tr>"
+    return f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>Saudi Leads</title>
+<meta http-equiv="refresh" content="60">
+<style>
+body{{font-family:Tahoma,Arial;background:#0f1419;color:#e8eef4;padding:24px}}
+a{{color:#3d8bfd}} .ok{{color:#1fa97a}} .card{{background:#1a222c;padding:14px;margin:8px 0;border-radius:10px}}
+table{{width:100%;border-collapse:collapse}} td,th{{padding:8px;border-bottom:1px solid #2a3542;text-align:right}}
+</style></head><body>
+<h1>Saudi Leads Scraper</h1>
+<div class="card">شركات: <b>{s.get('companies',0)}</b> |
+فيها تواصل: <b class="ok">{s.get('with_contact',0)}</b> ({s.get('contact_rate',0)}%) |
+إيميل: {s.get('with_email',0)} | جوال: {s.get('with_phone',0)}</div>
+<div class="card">السكريبر: <b class="{'ok' if s.get('scraper_alive') else ''}">{'شغّال' if s.get('scraper_alive') else 'متوقف'}</b>
+| بدأ: {s.get('run_started_at') or '—'} | ينتهي: {s.get('run_deadline_at') or '—'}</div>
+<p>
+<a href="/download/excel">Excel</a> |
+<a href="/download/contacts">جهات اتصال</a> |
+<a href="/download/csv">CSV</a> |
+<a href="/download/sqlite">SQLite</a> |
+<a href="/health">health</a> |
+<a href="/">تحديث</a>
+</p>
+{f'<pre style="color:#ffb4bc">{err}</pre>' if err else ''}
+<table><tr><th>ملف</th><th>حجم</th><th></th></tr>{rows}</table>
+</body></html>"""
 
 
 try:
@@ -242,6 +274,7 @@ except Exception:
 @app.before_request
 def boot():
     try:
+        Path(config.EXPORT_DIR).mkdir(parents=True, exist_ok=True)
         init_db()
         _ensure_scraper()
         _ensure_keepalive()
@@ -250,24 +283,24 @@ def boot():
 
 
 @app.get("/")
+@app.get("/dashboard")
+@app.get("/index.html")
 def dashboard():
-    return render_template("dashboard.html", **_stats())
+    s = _stats()
+    try:
+        return render_template("dashboard.html", **s)
+    except Exception as exc:
+        logger.exception("template failed: %s", exc)
+        return _fallback_html(s), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
-@app.get("/api/coverage")
-def coverage():
-    return jsonify(
-        {
-            "categories": len(config.SEARCH_CATEGORIES),
-            "cities": len(config.SAUDI_CITIES),
-            "total_jobs_per_cycle": len(config.SEARCH_CATEGORIES) * len(config.SAUDI_CITIES),
-            "category_list": [c["query_ar"] for c in config.SEARCH_CATEGORIES],
-            "city_list": list(config.SAUDI_CITIES),
-        }
-    )
+@app.get("/favicon.ico")
+def favicon():
+    return "", 204
 
 
 @app.get("/health")
+@app.get("/healthz")
 def health():
     s = _stats()
     return jsonify(
@@ -294,14 +327,26 @@ def health():
     )
 
 
+@app.get("/api/coverage")
+def coverage():
+    return jsonify(
+        {
+            "categories": len(config.SEARCH_CATEGORIES),
+            "cities": len(config.SAUDI_CITIES),
+            "total_jobs_per_cycle": len(config.SEARCH_CATEGORIES) * len(config.SAUDI_CITIES),
+        }
+    )
+
+
 @app.post("/export-now")
+@app.get("/export-now")
 def export_now():
     try:
         export_all()
     except Exception as exc:
         logger.exception("export-now failed")
         return jsonify({"error": str(exc)}), 500
-    return redirect(url_for("dashboard"))
+    return redirect("/")
 
 
 @app.get("/files/<path:filename>")
@@ -314,38 +359,53 @@ def download_file(filename: str):
 def download_sqlite():
     path = Path(config.SQLITE_PATH)
     if not path.exists():
-        return jsonify({"error": "sqlite not found"}), 404
+        return jsonify({"error": "sqlite not found yet — scraper still starting"}), 404
     return send_file(path, as_attachment=True, download_name="saudi_leads.db")
 
 
 @app.get("/download/excel")
 def download_excel():
     path = Path(config.EXPORT_DIR) / "saudi_companies_latest.xlsx"
+    try:
+        if not path.exists():
+            export_all()
+    except Exception as exc:
+        return jsonify({"error": str(exc), "hint": "no data yet"}), 404
     if not path.exists():
-        export_all()
-    if not path.exists():
-        return jsonify({"error": "no data yet"}), 404
+        return jsonify({"error": "no data yet — wait for scraper"}), 404
     return send_file(path, as_attachment=True, download_name="saudi_companies.xlsx")
 
 
 @app.get("/download/csv")
 def download_csv():
     path = Path(config.EXPORT_DIR) / "saudi_companies_latest.csv"
+    try:
+        if not path.exists():
+            export_all()
+    except Exception:
+        pass
     if not path.exists():
-        export_all()
-    if not path.exists():
-        return jsonify({"error": "no data yet"}), 404
+        return jsonify({"error": "no data yet — wait for scraper"}), 404
     return send_file(path, as_attachment=True, download_name="saudi_companies.csv")
 
 
 @app.get("/download/contacts")
 def download_contacts():
     path = Path(config.EXPORT_DIR) / "saudi_companies_with_contacts_latest.xlsx"
+    try:
+        if not path.exists():
+            export_all()
+    except Exception:
+        pass
     if not path.exists():
-        export_all()
-    if not path.exists():
-        return jsonify({"error": "empty"}), 404
+        return jsonify({"error": "empty — no contacts yet"}), 404
     return send_file(path, as_attachment=True, download_name="saudi_contacts.xlsx")
+
+
+@app.errorhandler(404)
+def not_found(e):
+    # Any unknown path → dashboard (avoid bare "Not Found")
+    return redirect("/")
 
 
 if __name__ == "__main__":
