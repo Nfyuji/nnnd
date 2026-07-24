@@ -30,6 +30,11 @@ MAX_COMPANIES_PER_QUERY = int(os.getenv("MAX_COMPANIES_PER_QUERY", "50"))
 MAX_TOTAL_COMPANIES = int(os.getenv("MAX_TOTAL_COMPANIES", "0"))
 KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", "3"))
 
+# Only save companies that have email OR phone after enrichment (quality over empty OSM names)
+REQUIRE_CONTACT = os.getenv("REQUIRE_CONTACT", "1") == "1"
+# How many empty DB rows to backfill each cycle
+BACKFILL_BATCH = int(os.getenv("BACKFILL_BATCH", "40"))
+
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 HTTP_PROXY = os.getenv("HTTP_PROXY", "")
 HTTPS_PROXY = os.getenv("HTTPS_PROXY", "")

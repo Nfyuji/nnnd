@@ -127,6 +127,18 @@
         <div class="value">{{ companies }}</div>
       </div>
       <div class="card">
+        <div class="label">فيها إيميل أو جوال</div>
+        <div class="value ok">{{ with_contact|default(0) }}</div>
+      </div>
+      <div class="card">
+        <div class="label">نسبة التواصل</div>
+        <div class="value ok">{{ contact_rate|default(0) }}%</div>
+      </div>
+      <div class="card">
+        <div class="label">إيميل / جوال</div>
+        <div class="value" style="font-size:1.1rem">{{ with_email|default(0) }} / {{ with_phone|default(0) }}</div>
+      </div>
+      <div class="card">
         <div class="label">حالة السكريبر</div>
         <div class="value {% if scraper_alive %}ok{% else %}bad{% endif %}">
           {% if scraper_alive %}شغّال{% else %}متوقف{% endif %}

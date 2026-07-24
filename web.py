@@ -20,7 +20,7 @@ from flask import Flask, abort, jsonify, redirect, render_template, send_file, u
 
 import config
 from database.db import count_companies, get_session, get_state, init_db
-from database.models import ScrapeJob
+from database.models import Company, ScrapeJob
 from export.csv_export import export_all
 
 logging.basicConfig(
@@ -167,15 +167,40 @@ def _ensure_keepalive():
 
 
 def _stats():
+    from sqlalchemy import or_, and_, func
+
     alive = bool(_scraper_thread and _scraper_thread.is_alive())
     _scraper_status["thread_alive"] = alive
     companies = 0
+    with_email = 0
+    with_phone = 0
+    with_contact = 0
     jobs_done = 0
     jobs_running = 0
     started = deadline = finished = None
     try:
         with get_session() as session:
             companies = count_companies(session)
+            with_email = (
+                session.query(Company)
+                .filter(Company.email.isnot(None), Company.email != "")
+                .count()
+            )
+            with_phone = (
+                session.query(Company)
+                .filter(Company.phone.isnot(None), Company.phone != "")
+                .count()
+            )
+            with_contact = (
+                session.query(Company)
+                .filter(
+                    or_(
+                        and_(Company.email.isnot(None), Company.email != ""),
+                        and_(Company.phone.isnot(None), Company.phone != ""),
+                    )
+                )
+                .count()
+            )
             started = get_state(session, "run_started_at")
             deadline = get_state(session, "run_deadline_at")
             finished = get_state(session, "run_finished_at")
@@ -187,6 +212,10 @@ def _stats():
         logger.warning("stats db error: %s", exc)
     return {
         "companies": companies,
+        "with_email": with_email,
+        "with_phone": with_phone,
+        "with_contact": with_contact,
+        "contact_rate": round((with_contact / companies * 100), 1) if companies else 0,
         "jobs_done": jobs_done,
         "jobs_running": jobs_running,
         "run_started_at": started,
@@ -245,6 +274,10 @@ def health():
         {
             "status": "ok",
             "companies": s["companies"],
+            "with_contact": s.get("with_contact", 0),
+            "with_email": s.get("with_email", 0),
+            "with_phone": s.get("with_phone", 0),
+            "contact_rate": s.get("contact_rate", 0),
             "jobs_done": s["jobs_done"],
             "jobs_running": s["jobs_running"],
             "run_started_at": s["run_started_at"],

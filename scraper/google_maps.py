@@ -456,30 +456,26 @@ def search_companies(
             item["industry"] = industry
             collected.append(item)
 
-    # 1) Places API if configured
+    # Prefer Places API results first (phones ~85%+)
     add_all(search_places_api(query, city, max_results=max_results))
 
-    # 2) OpenStreetMap Overpass (free mirrors)
+    # Free sources — will be SERP+website enriched in process_record
     if len(collected) < max_results:
         add_all(search_osm(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.5, 1.2))
 
-    # 3) Nominatim
     if len(collected) < max_results:
         add_all(nominatim_search(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.5, 1.2))
 
-    # 4) Web search for company sites
     if len(collected) < max_results:
         add_all(search_web_directories(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.5, 1.2))
 
-    # 5) Bing fallback
     if len(collected) < max_results:
         add_all(search_bing(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(1, 2))
+        time.sleep(random.uniform(0.5, 1.2))
 
-    # 6) Optional Selenium Maps
     if use_selenium and len(collected) < max_results:
         add_all(
             search_google_maps_selenium(query, city, max_results=max_results - len(collected))

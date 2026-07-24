@@ -37,7 +37,7 @@ from database.models import Company, ScrapeJob
 from export.csv_export import export_all, export_high_score
 from scraper.google_maps import search_companies
 from scraper.scoring import score_company
-from scraper.websites import enrich_company_record
+from scraper.enrichment import enrich_full, has_usable_contact
 
 # Logging: stdout only on Render (filesystem often read-only except disk mount)
 _log_handlers = [logging.StreamHandler(sys.stdout)]
@@ -122,13 +122,20 @@ def mark_job(session, query: str, city: str, category: str, status: str, count: 
 
 
 def process_record(session, record: dict) -> bool:
-    """Enrich, score, upsert. Returns True if saved."""
+    """Enrich hard (SERP → website), score, upsert. Skip empty contacts if configured."""
     try:
-        if record.get("website"):
-            record = enrich_company_record(record)
-            _delay()
+        record = enrich_full(record)
+        _delay()
+
+        if config.REQUIRE_CONTACT and not has_usable_contact(record):
+            logger.info(
+                "Skip (no phone/email after enrich): %s @ %s",
+                record.get("company_name"),
+                record.get("city"),
+            )
+            return False
+
         record["score"] = score_company(record)
-        # Only keep rows that have at least a name; prefer contact-rich
         company = upsert_company(session, record)
         if company and company.leads:
             for lead in company.leads:
@@ -137,6 +144,91 @@ def process_record(session, record: dict) -> bool:
     except Exception as exc:
         logger.exception("Failed to process %s: %s", record.get("company_name"), exc)
         return False
+
+
+def backfill_missing_contacts(limit: int | None = None) -> int:
+    """Re-enrich existing DB companies that have no email and no phone."""
+    limit = limit or config.BACKFILL_BATCH
+    updated = 0
+    with get_session() as session:
+from sqlalchemy import or_
+
+        rows = (
+            session.query(Company)
+            .filter(
+                or_(Company.email.is_(None), Company.email == ""),
+                or_(Company.phone.is_(None), Company.phone == ""),
+            )
+            .order_by(Company.id.asc())
+            .limit(limit)
+            .all()
+        )
+        todo = [
+            {
+                "id": c.id,
+                "company_name": c.company_name,
+                "city": c.city,
+                "website": c.website,
+                "category": c.category,
+                "industry": c.industry,
+                "source": c.source,
+            }
+            for c in rows
+        ]
+
+    for item in todo:
+        if _shutdown.is_set():
+            break
+        try:
+            enriched = enrich_full(item)
+            if not has_usable_contact(enriched) and not enriched.get("website"):
+                continue
+            with get_session() as session:
+                company = session.query(Company).filter(Company.id == item["id"]).first()
+                if not company:
+                    continue
+                for key in (
+                    "email",
+                    "phone",
+                    "whatsapp",
+                    "website",
+                    "instagram_url",
+                    "tiktok_url",
+                    "linkedin_url",
+                    "facebook_url",
+                    "twitter_url",
+                ):
+                    val = enriched.get(key)
+                    if val and not getattr(company, key, None):
+                        setattr(company, key, val)
+                company.enriched = True
+                company.score = score_company(
+                    {
+                        "website": company.website,
+                        "category": company.category,
+                        "industry": company.industry,
+                        "email": company.email,
+                        "phone": company.phone,
+                        "whatsapp": company.whatsapp,
+                        "instagram_url": company.instagram_url,
+                        "tiktok_url": company.tiktok_url,
+                        "linkedin_url": company.linkedin_url,
+                        "employees": company.employees,
+                    }
+                )
+                if company.email or company.phone:
+                    updated += 1
+                    logger.info(
+                        "Backfill OK #%s %s email=%s phone=%s",
+                        company.id,
+                        company.company_name,
+                        company.email,
+                        company.phone,
+                    )
+        except Exception as exc:
+            logger.warning("Backfill failed id=%s: %s", item.get("id"), exc)
+        _delay()
+    return updated
 
 
 def run_one_job(query: str, city: str, category: str, industry: str) -> int:
@@ -306,7 +398,13 @@ def main():
                 break
             logger.info(">>> %s | %s", query, city)
             saved = run_one_job(query, city, category, industry)
-            logger.info("<<< saved %s new/updated for %s/%s", saved, query, city)
+            logger.info("<<< saved %s contact-rich for %s/%s", saved, query, city)
+
+            # Re-enrich old empty OSM rows toward 40k goal
+            filled = backfill_missing_contacts(config.BACKFILL_BATCH)
+            if filled:
+                logger.info("Backfill filled contacts on %s existing companies", filled)
+
             maybe_export(force=False)
             _delay()
 
