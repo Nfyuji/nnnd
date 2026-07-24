@@ -118,13 +118,21 @@ Environment:
 
 اجمع بيانات التواصل العامة فقط، التزم بشروط المواقع ونظام حماية البيانات الشخصية في السعودية، ولا ترسل رسائل مزعجة بدون موافقة.
 
-## أوامر مفيدة
+## Fast local (15 دقيقة على جهازك)
 
 ```bash
-# تصدير فقط من قاعدة موجودة
-python -c "from export.csv_export import export_all; print(export_all())"
+# 1) انسخ الإعدادات
+copy .env.fast.example .env
 
-# تشغيل ويب محليًا
-set RUN_HOURS=50
-python web.py
+# 2) ضع GOOGLE_PLACES_API_KEY في .env
+
+# 3) شغّل
+python fast_local.py
 ```
+
+يجمع **فقط** الشركات اللي فيها جوال أو إيميل، بـ 32 عامل متوازي، لمدة 15 دقيقة.
+الملفات تطلع في `exports/` :
+- `saudi_fast_contacts_with_contacts_latest.xlsx`
+- `saudi_contacts_clean_latest.csv`
+
+> هدف 30 ألف / 15 دقيقة يحتاج Google Places API + جهاز قوي. بدون المفتاح النتائج أقل بكثير.
