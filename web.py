@@ -303,6 +303,12 @@ def favicon():
 @app.get("/healthz")
 def health():
     s = _stats()
+    current_job = None
+    try:
+        with get_session() as session:
+            current_job = get_state(session, "current_job")
+    except Exception:
+        pass
     return jsonify(
         {
             "status": "ok",
@@ -313,6 +319,7 @@ def health():
             "contact_rate": s.get("contact_rate", 0),
             "jobs_done": s["jobs_done"],
             "jobs_running": s["jobs_running"],
+            "current_job": current_job,
             "run_started_at": s["run_started_at"],
             "run_deadline_at": s["run_deadline_at"],
             "run_finished_at": s["run_finished_at"],

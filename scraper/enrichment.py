@@ -133,21 +133,29 @@ def get_website_url(company_name: str, city: str = "") -> Optional[str]:
     ]
     websites: list[str] = []
 
-    # DDGS package (best for Render)
+    # DDGS package (best for Render) — short timeout via thread
     try:
         from duckduckgo_search import DDGS
 
-        with DDGS() as ddgs:
-            for q in queries[:2]:
-                for r in ddgs.text(q, max_results=5) or []:
-                    href = (r.get("href") or r.get("link") or "").strip()
-                    if _is_good_website(href):
-                        websites.append(href.split("#")[0].rstrip("/"))
-                if websites:
-                    break
-                time.sleep(0.4)
+        def _ddgs_run():
+            local = []
+            with DDGS() as ddgs:
+                for q in queries[:2]:
+                    for r in ddgs.text(q, max_results=4) or []:
+                        href = (r.get("href") or r.get("link") or "").strip()
+                        if _is_good_website(href):
+                            local.append(href.split("#")[0].rstrip("/"))
+                    if local:
+                        break
+            return local
+
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(_ddgs_run)
+            websites.extend(fut.result(timeout=12))
     except Exception as exc:
-        logger.debug("DDGS failed: %s", exc)
+        logger.debug("DDGS failed/timeout: %s", exc)
 
     # Bing fallback
     if not websites:

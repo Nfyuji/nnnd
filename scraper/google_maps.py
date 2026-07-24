@@ -456,25 +456,25 @@ def search_companies(
             item["industry"] = industry
             collected.append(item)
 
-    # Prefer Places API results first (phones ~85%+)
+    # Prefer sources that return phones quickly
     add_all(search_places_api(query, city, max_results=max_results))
 
-    # Free sources — will be SERP+website enriched in process_record
+    # Bing snippets often include Saudi phones without visiting sites
     if len(collected) < max_results:
-        add_all(search_osm(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(0.5, 1.2))
-
-    if len(collected) < max_results:
-        add_all(nominatim_search(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(0.5, 1.2))
+        add_all(search_bing(query, city, max_results=max_results - len(collected)))
+        time.sleep(random.uniform(0.4, 0.9))
 
     if len(collected) < max_results:
         add_all(search_web_directories(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(0.5, 1.2))
+        time.sleep(random.uniform(0.4, 0.9))
 
     if len(collected) < max_results:
-        add_all(search_bing(query, city, max_results=max_results - len(collected)))
-        time.sleep(random.uniform(0.5, 1.2))
+        add_all(search_osm(query, city, max_results=max_results - len(collected)))
+        time.sleep(random.uniform(0.4, 0.9))
+
+    if len(collected) < max_results:
+        add_all(nominatim_search(query, city, max_results=max_results - len(collected)))
+        time.sleep(random.uniform(0.3, 0.7))
 
     if use_selenium and len(collected) < max_results:
         add_all(

@@ -83,24 +83,22 @@ def _delay():
 def build_job_queue(session) -> list[tuple[str, str, str, str]]:
     """
     Return (query, city, category, industry) jobs not yet marked done.
-    Rotates all cities × categories for long continuous coverage.
+    One DB query for done jobs — NOT 90k individual lookups.
     """
+    done = {
+        (q, c)
+        for q, c in session.query(ScrapeJob.query, ScrapeJob.city)
+        .filter(ScrapeJob.status == "done")
+        .all()
+    }
     jobs = []
     for cat in config.SEARCH_CATEGORIES:
+        query = cat["query_ar"]
         for city in config.SAUDI_CITIES:
-            query = cat["query_ar"]
-            exists = (
-                session.query(ScrapeJob)
-                .filter(
-                    ScrapeJob.query == query,
-                    ScrapeJob.city == city,
-                    ScrapeJob.status == "done",
-                )
-                .first()
-            )
-            if not exists:
+            if (query, city) not in done:
                 jobs.append((query, city, cat["category"], cat["industry"]))
     random.shuffle(jobs)
+    logger.info("Job queue ready: %s pending (done cached=%s)", len(jobs), len(done))
     return jobs
 
 
@@ -124,10 +122,20 @@ def mark_job(session, query: str, city: str, category: str, status: str, count: 
 
 
 def process_record(session, record: dict) -> bool:
-    """Enrich hard (SERP → website), score, upsert. Skip empty contacts if configured."""
+    """Enrich, score, upsert. Skip empty contacts if configured."""
     try:
-        record = enrich_full(record)
-        _delay()
+        # Fast path: already has phone/email (e.g. Places API / OSM tags)
+        if has_usable_contact(record):
+            if record.get("website") and not record.get("enriched"):
+                try:
+                    from scraper.websites import enrich_company_record
+
+                    record = enrich_company_record(record)
+                except Exception:
+                    pass
+        else:
+            record = enrich_full(record)
+            _delay()
 
         if config.REQUIRE_CONTACT and not has_usable_contact(record):
             logger.info(
@@ -235,6 +243,7 @@ def run_one_job(query: str, city: str, category: str, industry: str) -> int:
     saved = 0
     with get_session() as session:
         mark_job(session, query, city, category, "running")
+        set_state(session, "current_job", f"{query} | {city}")
 
     use_selenium = os.getenv("USE_SELENIUM", "0") == "1"
     try:
@@ -254,8 +263,12 @@ def run_one_job(query: str, city: str, category: str, industry: str) -> int:
                     break
                 if process_record(session, record):
                     saved += 1
+                    # commit progress often so /health shows rising counts
+                    if saved % 3 == 0:
+                        session.commit()
                 _delay()
             mark_job(session, query, city, category, "done", count=saved)
+            set_state(session, "last_job_saved", str(saved))
     except Exception as exc:
         logger.exception("Job failed %s/%s: %s", query, city, exc)
         with get_session() as session:
