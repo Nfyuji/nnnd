@@ -1,20 +1,29 @@
-"""Saudi phone / WhatsApp extraction and normalization."""
+"""Saudi phone / WhatsApp extraction and normalization (+ unified 9200)."""
 import re
 from typing import Optional
 
 import phonenumbers
 
-# Saudi mobile: 05XXXXXXXX or +9665XXXXXXXX or 9665XXXXXXXX
+# Mobile: 05xxxxxxxx / +9665xxxxxxxx
 SAUDI_MOBILE_PATTERNS = [
-    re.compile(r"(?:\+?966|00966|0)?\s*5\d{8}"),
+    re.compile(r"(?:\+?966|00966|0)?[\s\-()]*5[\s\-()]*\d(?:[\s\-()]*\d){7}"),
     re.compile(r"05\d{8}"),
-    re.compile(r"\+966\s*5\d{8}"),
+    re.compile(r"\+9665\d{8}"),
     re.compile(r"9665\d{8}"),
 ]
 
-# Landline Saudi: 01x / 01xx
+# Unified business numbers: 9200xxxxx
+SAUDI_UNIFIED_PATTERN = re.compile(r"9200\d{5}")
+
+# Landline
 SAUDI_LANDLINE_PATTERN = re.compile(
-    r"(?:\+?966|00966|0)?\s*(?:1[1-7]|2[0-9]|3[0-9]|4[0-9]|6[0-9]|7[0-9])\d{6,7}"
+    r"(?:\+?966|00966|0)?[\s\-()]*(?:1[1-7]|2\d|3\d|4\d|6\d|7\d)[\s\-()]*\d(?:[\s\-()]*\d){5,6}"
+)
+
+# Combined loose pattern from blueprint
+SAUDI_PHONE_REGEX = re.compile(
+    r"(?:\+?966|0)?5\d{8}|9200\d{5}|01\d{7}",
+    re.I,
 )
 
 WHATSAPP_LINK_PATTERN = re.compile(
@@ -24,16 +33,23 @@ WHATSAPP_LINK_PATTERN = re.compile(
 
 
 def normalize_saudi_phone(raw: str) -> Optional[str]:
-    """Return E.164-ish Saudi phone like +9665XXXXXXXX or None."""
+    """Return E.164 like +9665XXXXXXXX or +9669200XXXXX."""
     if not raw:
         return None
-    digits = re.sub(r"[^\d+]", "", raw.strip())
+    digits = re.sub(r"[^\d+]", "", str(raw).strip())
     if not digits:
         return None
 
-    # Strip leading 00
     if digits.startswith("00"):
         digits = "+" + digits[2:]
+
+    only = re.sub(r"\D", "", digits)
+
+    # Unified 9200xxxxx → +9669200xxxxx
+    if only.startswith("9200") and len(only) == 9:
+        return "+966" + only
+    if only.startswith("9669200") and len(only) == 12:
+        return "+" + only
 
     try:
         if digits.startswith("+"):
@@ -43,57 +59,66 @@ def normalize_saudi_phone(raw: str) -> Optional[str]:
         else:
             num = phonenumbers.parse(digits, "SA")
 
-        if not phonenumbers.is_valid_number(num):
-            # Still accept plausible SA mobiles
-            national = phonenumbers.format_number(num, phonenumbers.PhoneNumberFormat.E164)
-            if national.startswith("+9665") and len(national) == 13:
-                return national
-            return None
-
-        if num.country_code != 966:
-            return None
-
-        return phonenumbers.format_number(num, phonenumbers.PhoneNumberFormat.E164)
+        e164 = phonenumbers.format_number(num, phonenumbers.PhoneNumberFormat.E164)
+        if num.country_code == 966:
+            if phonenumbers.is_valid_number(num):
+                return e164
+            # Accept mobiles even if lib is strict
+            if e164.startswith("+9665") and len(e164) == 13:
+                return e164
+            if e164.startswith("+9669200"):
+                return e164
+        return None
     except phonenumbers.NumberParseException:
-        # Manual fallback for 05xxxxxxxx
-        only = re.sub(r"\D", "", raw)
         if only.startswith("05") and len(only) == 10:
             return "+966" + only[1:]
         if only.startswith("9665") and len(only) == 12:
             return "+" + only
         if only.startswith("5") and len(only) == 9:
             return "+966" + only
+        if only.startswith("01") and len(only) == 9:
+            return "+966" + only[1:]
         return None
 
 
 def extract_phones(text: str) -> list[str]:
-    """Extract unique normalized Saudi phones from free text / HTML."""
+    """Extract unique normalized Saudi phones (mobile + 9200 + landline)."""
     if not text:
         return []
     found: list[str] = []
     seen: set[str] = set()
 
-    # Collapse spaced phone digits: "+966 55 987 6543" -> "+966559876543"
     compact = re.sub(
         r"(\+?966|00966|0)?[\s\-()]*5(?:[\s\-()]*\d){8}",
         lambda m: re.sub(r"[^\d+]", "", m.group(0)),
         text,
     )
 
+    candidates: list[str] = []
     for blob in (text, compact):
         for pattern in SAUDI_MOBILE_PATTERNS:
-            for m in pattern.findall(blob):
-                norm = normalize_saudi_phone(m)
-                if norm and norm not in seen:
-                    seen.add(norm)
-                    found.append(norm)
+            candidates.extend(pattern.findall(blob))
+        candidates.extend(SAUDI_UNIFIED_PATTERN.findall(blob))
+        candidates.extend(SAUDI_LANDLINE_PATTERN.findall(blob))
+        candidates.extend(SAUDI_PHONE_REGEX.findall(blob))
 
-        for m in SAUDI_LANDLINE_PATTERN.findall(blob):
-            norm = normalize_saudi_phone(m)
-            if norm and norm not in seen:
-                seen.add(norm)
-                found.append(norm)
+    for m in candidates:
+        # findall may return tuples for some patterns
+        raw = m if isinstance(m, str) else "".join(m)
+        norm = normalize_saudi_phone(raw)
+        if norm and norm not in seen:
+            seen.add(norm)
+            found.append(norm)
 
+    # Prefer mobiles first, then 9200, then landline
+    def rank(p: str) -> int:
+        if p.startswith("+9665"):
+            return 0
+        if "+9669200" in p:
+            return 1
+        return 2
+
+    found.sort(key=rank)
     return found
 
 
@@ -103,14 +128,17 @@ def extract_whatsapp(text: str, html: str = "") -> Optional[str]:
     if m:
         return normalize_saudi_phone(m.group(1))
     phones = extract_phones(blob)
-    return phones[0] if phones else None
+    mobiles = [p for p in phones if p.startswith("+9665")]
+    return mobiles[0] if mobiles else (phones[0] if phones else None)
 
 
 def to_local_format(e164: str) -> str:
-    """+9665xxxxxxxx -> 05xxxxxxxx"""
+    """+9665xxxxxxxx -> 05xxxxxxxx ; +9669200xxxxx -> 9200xxxxx"""
     if not e164:
         return ""
     digits = re.sub(r"\D", "", e164)
+    if digits.startswith("9669200"):
+        return digits[3:]
     if digits.startswith("966"):
         return "0" + digits[3:]
     return e164

@@ -106,17 +106,44 @@ def export_all(prefix: str = "saudi_companies") -> dict[str, Path]:
     df.to_csv(latest_csv, index=False, encoding="utf-8-sig")
     df.to_excel(latest_xlsx, index=False, engine="openpyxl")
 
-    # Contact-rich subset
+    # Contact-rich subset (clean file for campaigns)
     rich = df[df["email"].notna() | df["phone"].notna()].copy()
+    # Drop empties cleanly
+    rich = rich.dropna(how="all", subset=["email", "phone"])
     rich_path = out_dir / f"{prefix}_with_contacts_{stamp}.xlsx"
     rich_latest = out_dir / f"{prefix}_with_contacts_latest.xlsx"
+    rich_csv = out_dir / f"{prefix}_with_contacts_latest.csv"
+    rich_clean = out_dir / "saudi_contacts_clean_latest.csv"
     rich.to_excel(rich_path, index=False, engine="openpyxl")
     rich.to_excel(rich_latest, index=False, engine="openpyxl")
+    rich.to_csv(rich_csv, index=False, encoding="utf-8-sig")
+    # Ultra-clean campaign file
+    clean_cols = [
+        c
+        for c in [
+            "company_name",
+            "email",
+            "phone",
+            "phone_local",
+            "whatsapp",
+            "website",
+            "city",
+            "category",
+            "industry",
+            "instagram_url",
+            "tiktok_url",
+            "score",
+            "source",
+        ]
+        if c in rich.columns
+    ]
+    rich[clean_cols].to_csv(rich_clean, index=False, encoding="utf-8-sig")
 
     logger.info(
-        "Exported %s companies (%s with contacts) -> %s",
+        "Exported %s companies (%s with contacts = %.1f%%) -> %s",
         len(df),
         len(rich),
+        (len(rich) / len(df) * 100) if len(df) else 0,
         xlsx_path,
     )
     return {
@@ -125,6 +152,8 @@ def export_all(prefix: str = "saudi_companies") -> dict[str, Path]:
         "latest_csv": latest_csv,
         "latest_xlsx": latest_xlsx,
         "with_contacts": rich_path,
+        "with_contacts_csv": rich_csv,
+        "clean_csv": rich_clean,
     }
 
 

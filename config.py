@@ -27,13 +27,13 @@ SCRAPE_DELAY_MIN = float(os.getenv("SCRAPE_DELAY_MIN", "1"))
 SCRAPE_DELAY_MAX = float(os.getenv("SCRAPE_DELAY_MAX", "3"))
 EXPORT_INTERVAL_MINUTES = int(os.getenv("EXPORT_INTERVAL_MINUTES", "15"))
 MAX_COMPANIES_PER_QUERY = int(os.getenv("MAX_COMPANIES_PER_QUERY", "50"))
-MAX_TOTAL_COMPANIES = int(os.getenv("MAX_TOTAL_COMPANIES", "0"))
+MAX_TOTAL_COMPANIES = int(os.getenv("MAX_TOTAL_COMPANIES", "30000"))
 KEEPALIVE_MINUTES = float(os.getenv("KEEPALIVE_MINUTES", "3"))
 
-# Only save companies that have email OR phone after enrichment (quality over empty OSM names)
+# Only save companies that have email OR phone after enrichment
 REQUIRE_CONTACT = os.getenv("REQUIRE_CONTACT", "1") == "1"
-# How many empty DB rows to backfill each cycle
-BACKFILL_BATCH = int(os.getenv("BACKFILL_BATCH", "40"))
+# Backfill empty rows each cycle (aggressive toward 80–90% fill)
+BACKFILL_BATCH = int(os.getenv("BACKFILL_BATCH", "80"))
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 HTTP_PROXY = os.getenv("HTTP_PROXY", "")

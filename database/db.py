@@ -122,8 +122,19 @@ def get_state(session, key: str, default: str | None = None) -> str | None:
     return row.value if row else default
 
 
-def count_companies(session) -> int:
-    return session.query(Company).count()
+def count_with_contacts(session) -> int:
+    from sqlalchemy import or_, and_
+
+    return (
+        session.query(Company)
+        .filter(
+            or_(
+                and_(Company.email.isnot(None), Company.email != ""),
+                and_(Company.phone.isnot(None), Company.phone != ""),
+            )
+        )
+        .count()
+    )
 
 
 def healthcheck() -> bool:

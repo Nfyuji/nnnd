@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
 import config
 from database.db import (
     count_companies,
+    count_with_contacts,
     get_session,
     get_state,
     init_db,
@@ -372,6 +373,16 @@ def main():
 
         if config.MAX_TOTAL_COMPANIES and total >= config.MAX_TOTAL_COMPANIES:
             logger.info("Reached MAX_TOTAL_COMPANIES=%s — stopping.", config.MAX_TOTAL_COMPANIES)
+            break
+
+        with get_session() as session:
+            contacts_n = count_with_contacts(session)
+        if config.MAX_TOTAL_COMPANIES and contacts_n >= config.MAX_TOTAL_COMPANIES:
+            logger.info(
+                "Reached %s companies WITH contacts (target %s) — stopping.",
+                contacts_n,
+                config.MAX_TOTAL_COMPANIES,
+            )
             break
 
         if not jobs:
