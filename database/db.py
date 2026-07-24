@@ -122,6 +122,10 @@ def get_state(session, key: str, default: str | None = None) -> str | None:
     return row.value if row else default
 
 
+def count_companies(session) -> int:
+    return session.query(Company).count()
+
+
 def count_with_contacts(session) -> int:
     from sqlalchemy import or_, and_
 
