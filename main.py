@@ -38,6 +38,7 @@ from export.csv_export import export_all, export_high_score
 from scraper.google_maps import search_companies
 from scraper.scoring import score_company
 from scraper.enrichment import enrich_full, has_usable_contact
+from sqlalchemy import or_
 
 # Logging: stdout only on Render (filesystem often read-only except disk mount)
 _log_handlers = [logging.StreamHandler(sys.stdout)]
@@ -151,8 +152,6 @@ def backfill_missing_contacts(limit: int | None = None) -> int:
     limit = limit or config.BACKFILL_BATCH
     updated = 0
     with get_session() as session:
-from sqlalchemy import or_
-
         rows = (
             session.query(Company)
             .filter(
