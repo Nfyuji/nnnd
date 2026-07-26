@@ -10,6 +10,7 @@ from scraper.phones import extract_phones, normalize_saudi_phone, to_local_forma
 from scraper.scoring import score_company
 from database.db import init_db, get_session, upsert_company, count_companies
 from export.csv_export import export_all
+from store_categories import is_likely_store
 
 
 def test_phones():
@@ -51,6 +52,14 @@ def test_score():
     assert s >= 80
 
 
+def test_store_filter():
+    assert is_likely_store("متجر النور للعطور")
+    assert is_likely_store("مؤسسة الأناقة للملابس")
+    assert not is_likely_store("مطعم النور")
+    assert not is_likely_store("عيادة الأناقة")
+    print("store filter OK")
+
+
 def test_db_export():
     init_db()
     with get_session() as session:
@@ -79,5 +88,5 @@ if __name__ == "__main__":
     test_phones()
     test_emails()
     test_score()
-    test_db_export()
+    test_store_filter()
     print("ALL SMOKE TESTS PASSED")

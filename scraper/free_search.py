@@ -102,9 +102,6 @@ def search_bing_contacts(query: str, city: str, max_results: int = 25) -> list[d
             )
             soup = BeautifulSoup(resp.text, "html.parser")
             # Whole page phones (sidebar / knowledge sometimes)
-            page_phones = extract_phones(soup.get_text(" ", strip=True))
-            page_emails = extract_emails(resp.text)
-
             for li in soup.select("li.b_algo"):
                 a = li.select_one("h2 a")
                 if not a:
@@ -143,18 +140,7 @@ def search_bing_contacts(query: str, city: str, max_results: int = 25) -> list[d
                 if len(collected) >= max_results:
                     break
 
-            # If algo empty but page has phones, create synthetic lead from query
-            if not collected and page_phones:
-                collected.append(
-                    {
-                        "company_name": f"{query} - {city}",
-                        "phone": page_phones[0],
-                        "email": best_email(page_emails),
-                        "city": city,
-                        "country": "Saudi Arabia",
-                        "source": "bing_page",
-                    }
-                )
+            # Do not create synthetic leads from page-level phone numbers.
         except Exception as exc:
             logger.debug("bing_contacts fail: %s", exc)
         time.sleep(random.uniform(0.15, 0.35))

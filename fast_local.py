@@ -24,11 +24,11 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault("REQUIRE_CONTACT", "1")
-os.environ.setdefault("MAX_TOTAL_COMPANIES", "30000")
+os.environ.setdefault("MAX_TOTAL_COMPANIES", "25000")
 os.environ.setdefault("SCRAPE_DELAY_MIN", "0")
 os.environ.setdefault("SCRAPE_DELAY_MAX", "0.1")
 os.environ.setdefault("EXPORT_DIR", str(ROOT / "exports"))
-os.environ.setdefault("SQLITE_PATH", str(ROOT / "exports" / "saudi_leads_fast.db"))
+os.environ.setdefault("SQLITE_PATH", str(ROOT / "exports" / "saudi_stores_25k.db"))
 # Explicitly ignore Places even if set
 os.environ["GOOGLE_PLACES_API_KEY"] = ""
 
@@ -39,9 +39,11 @@ config.GOOGLE_PLACES_API_KEY = ""
 
 from database.db import count_companies, count_with_contacts, get_session, init_db, upsert_company
 from export.csv_export import export_all
+from scraper.emails import best_email, extract_emails
 from scraper.free_search import discover_free
 from scraper.phones import normalize_saudi_phone
 from scraper.scoring import score_company
+from store_categories import STORE_CATEGORIES, is_likely_store
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,7 +55,7 @@ logger = logging.getLogger("fast_local")
 RUN_MINUTES = float(os.getenv("RUN_MINUTES", "15"))
 WORKERS = int(os.getenv("FAST_WORKERS", "24"))
 PER_QUERY = int(os.getenv("FAST_PER_QUERY", "30"))
-TARGET = int(os.getenv("MAX_TOTAL_COMPANIES", "30000"))
+TARGET = int(os.getenv("MAX_TOTAL_COMPANIES", "25000"))
 
 _lock = threading.Lock()
 _saved = 0
@@ -64,19 +66,22 @@ _stats = {"jobs": 0, "hits": 0, "skips": 0}
 
 
 def _has_contact(rec: dict) -> bool:
-    return bool(rec.get("phone") or rec.get("email") or rec.get("whatsapp"))
+    return bool(rec.get("phone") or rec.get("email"))
 
 
 def _save_record(rec: dict) -> bool:
     global _saved
-    phone = rec.get("phone") or ""
+    email = best_email(extract_emails(str(rec.get("email") or "")))
+    rec["email"] = email
+    phone = rec.get("phone") or rec.get("whatsapp") or ""
     if phone:
-        phone = normalize_saudi_phone(str(phone)) or phone
+        phone = normalize_saudi_phone(str(phone))
         rec["phone"] = phone
-        rec["whatsapp"] = rec.get("whatsapp") or phone
+        if phone:
+            rec["whatsapp"] = rec.get("whatsapp") or phone
 
     name = (rec.get("company_name") or "").strip()
-    if not name or not _has_contact(rec):
+    if not name or not is_likely_store(name) or not _has_contact(rec):
         with _lock:
             _stats["skips"] += 1
         return False
@@ -147,17 +152,6 @@ def _run_one_job(query: str, city: str, category: str, industry: str) -> int:
 
 
 def _priority_jobs() -> list[tuple[str, str, str, str]]:
-    keys = (
-        "مطعم", "مقهى", "كافيه", "صيدلية", "عيادة", "كوافير", "صالون",
-        "محل", "بقالة", "سوبر", "فندق", "شاليه", "مغسلة", "ورشة",
-        "عقارات", "جوالات", "حلويات", "مخبز", "تسويق", "اعلان",
-        "جيم", "سبا", "مستشفى", "سوق", "ورد", "عطور", "بوتيك",
-        "بيتزا", "برجر", "شاورما", "عصائر", "تموينات", "ذهب",
-    )
-    hot = [c for c in config.SEARCH_CATEGORIES if any(k in c["query_ar"] for k in keys)]
-    if len(hot) < 60:
-        hot = list(config.SEARCH_CATEGORIES[:100])
-
     cities = [
         "الرياض", "جدة", "الدمام", "مكة", "المدينة المنورة", "الخبر",
         "الطائف", "تبوك", "بريدة", "أبها", "خميس مشيط", "الجبيل",
@@ -167,7 +161,11 @@ def _priority_jobs() -> list[tuple[str, str, str, str]]:
     ]
     cities += [c for c in config.SAUDI_CITIES if c not in cities]
 
-    jobs = [(c["query_ar"], city, c["category"], c["industry"]) for c in hot for city in cities]
+    jobs = [
+        (query, city, category, industry)
+        for query, category, industry in STORE_CATEGORIES
+        for city in cities
+    ]
     random.shuffle(jobs)
     return jobs
 
